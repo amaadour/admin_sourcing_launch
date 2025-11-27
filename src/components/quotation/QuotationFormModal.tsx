@@ -559,23 +559,26 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-3xl h-auto mx-auto p-4 sm:p-6">
-      {/* Modal header */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h2 className="text-xl font-bold text-[#0D47A1] dark:text-white">Create New Quotation</h2>
-        <button 
-          onClick={onClose}
-          className="p-1 text-gray-400 rounded-full hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
-        >
-          <CloseIcon className="w-6 h-6" />
-        </button>
-      </div>
+    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-3xl mx-auto">
+      <div className="flex flex-col h-full max-h-[85vh]">
+        {/* Modal header - Fixed */}
+        <div className="flex items-center justify-between p-4 sm:p-6 pb-0 flex-shrink-0">
+          <h2 className="text-xl font-bold text-[#0D47A1] dark:text-white">Create New Quotation</h2>
+          <button 
+            onClick={onClose}
+            className="p-1 text-gray-400 rounded-full hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+          >
+            <CloseIcon className="w-6 h-6" />
+          </button>
+        </div>
 
-      {/* Stepper Progress Indicator */}
-      <Stepper currentStep={step} steps={["Product Information", "Shipping Information", "Service Details"]} className="mb-6 flex-shrink-0" />
+        {/* Stepper Progress Indicator - Fixed */}
+        <div className="px-4 sm:px-6 py-4 flex-shrink-0">
+          <Stepper currentStep={step} steps={["Product Information", "Shipping Information", "Service Details"]} />
+        </div>
 
-      {/* Form content */}
-      <div className="overflow-y-auto custom-scrollbar px-1 py-2 flex-1 min-h-0">
+        {/* Form content - Scrollable */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 pb-4 sm:pb-6 min-h-0">
         <form onSubmit={handleSubmit}>
           {/* Step 1: Product Information */}
           {step === 1 && (
@@ -628,51 +631,32 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                 <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
                   Product Images
                 </label>
-                <div className="transition border border-gray-300 border-dashed cursor-pointer dark:hover:border-[#1E88E5] dark:border-gray-700 rounded-xl hover:border-[#1E88E5]">
-                  <div
-                    {...getRootProps()}
-                    className={`dropzone rounded-xl border-dashed border-gray-300 p-4 ${
-                      isDragActive
-                        ? "border-[#1E88E5] bg-gray-100 dark:bg-gray-800"
-                        : "border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
-                    }`}
-                  >
-                    {/* Hidden Input */}
-                    <input {...getInputProps()} />
-
-                    <div className="flex flex-col items-center">
-                      {/* Icon Container */}
-                      <div className="mb-4 flex justify-center">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                          <svg
-                            className="fill-current"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 29 28"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M14.5019 3.91699C14.2852 3.91699 14.0899 4.00891 13.953 4.15589L8.57363 9.53186C8.28065 9.82466 8.2805 10.2995 8.5733 10.5925C8.8661 10.8855 9.34097 10.8857 9.63396 10.5929L13.7519 6.47752V18.667C13.7519 19.0812 14.0877 19.417 14.5019 19.417C14.9161 19.417 15.2519 19.0812 15.2519 18.667V6.48234L19.3653 10.5929C19.6583 10.8857 20.1332 10.8855 20.426 10.5925C20.7188 10.2995 20.7186 9.82463 20.4256 9.53184L15.0838 4.19378C14.9463 4.02488 14.7367 3.91699 14.5019 3.91699ZM5.91626 18.667C5.91626 18.2528 5.58047 17.917 5.16626 17.917C4.75205 17.917 4.41626 18.2528 4.41626 18.667V21.8337C4.41626 23.0763 5.42362 24.0837 6.66626 24.0837H22.3339C23.5766 24.0837 24.5839 23.0763 24.5839 21.8337V18.667C24.5839 18.2528 24.2482 17.917 23.8339 17.917C23.4197 17.917 23.0839 18.2528 23.0839 18.667V21.8337C23.0839 22.2479 22.7482 22.5837 22.3339 22.5837H6.66626C6.25205 22.5837 5.91626 22.2479 5.91626 21.8337V18.667Z"
-                            />
-                          </svg>
-                        </div>
-                      </div>
-
-                      {/* Text Content */}
-                      <h4 className="mb-2 font-medium text-gray-800 dark:text-white/90">
-                        {isDragActive ? "Drop Files Here" : "Drag & Drop Files Here"}
-                      </h4>
-
-                      <span className="text-center mb-3 block w-full max-w-[290px] text-sm text-gray-500 dark:text-gray-400">
-                        Drag and drop your PNG, JPG, WebP, SVG images here or browse
-                      </span>
-
-                      <span className="font-medium underline text-sm text-[#1E88E5]">
-                        Browse File
-                      </span>
+                <div
+                  {...getRootProps()}
+                  className={`cursor-pointer transition-all rounded-lg border-2 border-dashed p-3 ${
+                    isDragActive
+                      ? "border-[#1E88E5] bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-300 bg-gray-50 hover:border-[#1E88E5] hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-[#1E88E5] dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 flex-shrink-0">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        {isDragActive ? "Drop images here" : "Drop images or click to upload"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        PNG, JPG, WebP, SVG
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-[#1E88E5] hover:underline flex-shrink-0">
+                      Browse
+                    </span>
                   </div>
                 </div>
                 
@@ -991,6 +975,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
             </div>
           )}
         </form>
+        </div>
       </div>
     </Modal>
   );
