@@ -729,9 +729,12 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                   <div className="relative">
                     <div className="flex items-center">
                       {formData.destinationCountry && (
-                                              <span className="absolute left-2 text-xl dark:text-white">
-                        {countries.find(c => c.code === formData.destinationCountry)?.emoji}
-                      </span>
+                        <span 
+                          className="absolute left-2 text-xl dark:text-white"
+                          style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
+                        >
+                          {countries.find(c => c.code === formData.destinationCountry)?.emoji}
+                        </span>
                       )}
                       <input
                         type="text"
@@ -783,7 +786,12 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                             : ""
                         }`}
                       >
-                        <span className="text-xl">{country.emoji}</span>
+                        <span 
+                          className="text-xl"
+                          style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
+                        >
+                          {country.emoji}
+                        </span>
                         <span>{country.name}</span>
                       </div>
                     ))}

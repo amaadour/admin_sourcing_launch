@@ -328,6 +328,15 @@ layer(base);
   input[type="number"] {
     -moz-appearance: textfield;
   }
+  
+  /* For better emoji/flag rendering */
+  .emoji-flag {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Android Emoji', 'EmojiSymbols', 'EmojiOne Mozilla', 'Twemoji Mozilla', 'Noto Emoji', sans-serif;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    display: inline-block;
+  }
 }
 
 /* third-party libraries CSS */
