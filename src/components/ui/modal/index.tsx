@@ -68,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
       )}
       <div
         ref={modalRef}
-        className={`${contentClasses} ${className} max-h-[90vh] md:max-h-[85vh] overflow-y-auto shadow-xl`}
+        className={`${contentClasses} ${className} max-h-[90vh] md:max-h-[85vh] shadow-xl flex flex-col`}
         style={contentStyle}
         onClick={(e) => e.stopPropagation()}
       >
@@ -93,7 +93,7 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div className="clear-both">{children}</div>
+        <div className="clear-both flex flex-col h-full">{children}</div>
       </div>
     </div>
   );

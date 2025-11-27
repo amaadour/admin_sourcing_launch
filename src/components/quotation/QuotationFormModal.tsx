@@ -559,9 +559,9 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-3xl h-auto mx-auto p-4 sm:p-6 overflow-hidden">
+    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-3xl h-auto mx-auto p-4 sm:p-6">
       {/* Modal header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h2 className="text-xl font-bold text-[#0D47A1] dark:text-white">Create New Quotation</h2>
         <button 
           onClick={onClose}
@@ -572,10 +572,10 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
       </div>
 
       {/* Stepper Progress Indicator */}
-      <Stepper currentStep={step} steps={["Product Information", "Shipping Information", "Service Details"]} className="mb-6" />
+      <Stepper currentStep={step} steps={["Product Information", "Shipping Information", "Service Details"]} className="mb-6 flex-shrink-0" />
 
       {/* Form content */}
-      <div className="max-h-[calc(100vh-100px)] overflow-y-auto px-1 py-2">
+      <div className="overflow-y-auto custom-scrollbar px-1 py-2 flex-1 min-h-0">
         <form onSubmit={handleSubmit}>
           {/* Step 1: Product Information */}
           {step === 1 && (
@@ -726,26 +726,29 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                   Destination Country *
                 </label>
                 <div className="mb-4">
-                  <div className="relative">
-                    <div className="flex items-center">
-                      {formData.destinationCountry && (
+                  {/* Search Input */}
+                  <div className="relative mb-2">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      {formData.destinationCountry ? (
                         <span 
-                          className="absolute left-2 text-xl dark:text-white"
+                          className="text-xl"
                           style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
                         >
                           {countries.find(c => c.code === formData.destinationCountry)?.emoji}
                         </span>
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                       )}
-                      <input
-                        type="text"
-                        placeholder="Search countries..."
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-2 ${
-                          formData.destinationCountry ? 'pl-10' : ''
-                        }`}
-                      />
                     </div>
+                    <input
+                      type="text"
+                      placeholder="Search countries..."
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      className="w-full pl-11 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-700 dark:border-gray-600 dark:text-white transition-all"
+                    />
                     {searchQuery && (
                       <button
                         type="button"
@@ -759,7 +762,7 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                             });
                           }
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -768,33 +771,53 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                     )}
                   </div>
                   
-                  <div className="h-[200px] overflow-y-auto border border-gray-300 rounded-md">
-                    {filteredCountries.map((country) => (
-                      <div
-                        key={country.code}
-                        onClick={() => {
-                          setFormData({
-                            ...formData,
-                            destinationCountry: country.code,
-                            shippingMethod: ""
-                          });
-                          setSearchQuery(country.name);
-                        }}
-                        className={`flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white ${
-                          formData.destinationCountry === country.code
-                            ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200"
-                            : ""
-                        }`}
-                      >
-                        <span 
-                          className="text-xl"
-                          style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
-                        >
-                          {country.emoji}
-                        </span>
-                        <span>{country.name}</span>
+                  {/* Country List */}
+                  <div className="max-h-[220px] overflow-y-auto border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-600 custom-scrollbar">
+                    {filteredCountries.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                        <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm">No countries found</span>
                       </div>
-                    ))}
+                    ) : (
+                      filteredCountries.map((country) => (
+                        <div
+                          key={country.code}
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              destinationCountry: country.code,
+                              shippingMethod: ""
+                            });
+                            setSearchQuery(country.name);
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                            formData.destinationCountry === country.code
+                              ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200"
+                              : "hover:bg-white dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                          }`}
+                        >
+                          <span 
+                            className="text-2xl flex-shrink-0"
+                            style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
+                          >
+                            {country.emoji}
+                          </span>
+                          <span className="font-medium">{country.name}</span>
+                          {formData.destinationCountry === country.code && (
+                            <svg className="w-5 h-5 ml-auto text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {/* Country count indicator */}
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {filteredCountries.length} {filteredCountries.length === 1 ? 'country' : 'countries'} {searchQuery && 'found'}
                   </div>
                 </div>
               </div>
