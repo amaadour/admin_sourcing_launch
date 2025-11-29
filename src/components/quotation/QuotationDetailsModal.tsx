@@ -540,33 +540,35 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
       isOpen={isOpen} 
       onClose={onClose} 
       showCloseButton={true}
-      className="max-w-4xl h-auto mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 custom-scrollbar"
+      className="max-w-4xl mx-auto"
     >
-      {/* Modal header */}
-      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-        <div>
-          <h2 className="text-xl font-bold text-[#0D47A1] dark:text-blue-400 flex items-center">
-            Quotation Details <span className="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">ID: {quotation.quotation_id || quotation.id}</span>
-          </h2>
-          <div className="flex items-center mt-1">
-            <span className="text-sm text-gray-500 dark:text-gray-400 mr-3">Created on {quotation.date}</span>
-            <Badge
-              size="sm"
-              color={
-                quotation.status === "Approved"
-                  ? "success"
-                  : quotation.status === "Pending"
-                  ? "warning"
-                  : "error"
-              }
-            >
-              {quotation.status}
-            </Badge>
+      <div className="flex flex-col h-full max-h-[85vh]">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between p-4 sm:p-6 pb-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+          <div>
+            <h2 className="text-xl font-bold text-[#0D47A1] dark:text-blue-400 flex items-center">
+              Quotation Details <span className="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">ID: {quotation.quotation_id || quotation.id}</span>
+            </h2>
+            <div className="flex items-center mt-1">
+              <span className="text-sm text-gray-500 dark:text-gray-400 mr-3">Created on {quotation.date}</span>
+              <Badge
+                size="sm"
+                color={
+                  quotation.status === "Approved"
+                    ? "success"
+                    : quotation.status === "Pending"
+                    ? "warning"
+                    : "error"
+                }
+              >
+                {quotation.status}
+              </Badge>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-h-[calc(100vh-200px)] px-1 py-2">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 min-h-0">
         {/* Product Information */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
@@ -763,8 +765,10 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
           </div>
         )}
 
-        {/* Action buttons */}
-        <div ref={actionButtonsRef} className="mt-6 flex justify-end gap-3">
+        </div>
+
+        {/* Fixed Footer with Action buttons */}
+        <div ref={actionButtonsRef} className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 flex-shrink-0 bg-white dark:bg-gray-800">
           {quotation.status === "Pending" ? (
             <Button
               variant="primary"

@@ -483,11 +483,12 @@ export default function ShipmentTrackingPage() {
       <Modal 
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
-        className="max-w-3xl mx-4 md:mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl relative overflow-hidden custom-scrollbar"
+        className="max-w-3xl mx-4 md:mx-auto"
       >
         {selectedShipment && selectedShipment.quotation && (
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col h-full max-h-[85vh]">
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
               <div>
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white">Shipment Details</h2>
                 <p className="text-gray-600 dark:text-gray-400">
@@ -496,7 +497,8 @@ export default function ShipmentTrackingPage() {
               </div>
             </div>
             
-            <div className="p-5 md:p-6">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 min-h-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <div className="relative h-48 w-full overflow-hidden rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
@@ -711,15 +713,17 @@ export default function ShipmentTrackingPage() {
                 </div>
               )}
               
-              <div className="mt-6 flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDetailsModal(false)}
-                  className="border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                  Close
-                </Button>
-              </div>
+            </div>
+            
+            {/* Fixed Footer */}
+            <div className="flex justify-end p-5 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Close
+              </Button>
             </div>
           </div>
         )}
