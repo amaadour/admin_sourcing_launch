@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
-import { Plus, X, Upload, Package, DollarSign, Clock, FileText, Image as ImageIcon, Trash2 } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { customToast } from "@/components/ui/toast"
 import { supabase } from "@/lib/supabase"
-import { cn } from "@/lib/utils"
 
 interface PriceOptionsData {
   title_option1?: string;
@@ -62,12 +61,6 @@ export default function PriceOptionsModal({
   const [isLoading, setIsLoading] = useState(false)
   const [showOption2, setShowOption2] = useState(!!initialData?.title_option2)
   const [showOption3, setShowOption3] = useState(!!initialData?.title_option3)
-  const [imagePreview1, setImagePreview1] = useState<string | null>(initialData?.image_option1 ?? null)
-  const [imagePreview1_2, setImagePreview1_2] = useState<string | null>(initialData?.image_option1_2 ?? null)
-  const [imagePreview2, setImagePreview2] = useState<string | null>(initialData?.image_option2 ?? null)
-  const [imagePreview2_2, setImagePreview2_2] = useState<string | null>(initialData?.image_option2_2 ?? null)
-  const [imagePreview3, setImagePreview3] = useState<string | null>(initialData?.image_option3 ?? null)
-  const [imagePreview3_2, setImagePreview3_2] = useState<string | null>(initialData?.image_option3_2 ?? null)
 
   const [formData, setFormData] = useState<PriceOptionsData>({
     title_option1: initialData?.title_option1 || "",
@@ -143,14 +136,7 @@ export default function PriceOptionsModal({
 
           setFormData(parsedData);
           
-          // Set preview images and visibility options based on saved data
-          if (parsedData.image_option1) setImagePreview1(parsedData.image_option1);
-          if (parsedData.image_option1_2) setImagePreview1_2(parsedData.image_option1_2);
-          if (parsedData.image_option2) setImagePreview2(parsedData.image_option2);
-          if (parsedData.image_option2_2) setImagePreview2_2(parsedData.image_option2_2);
-          if (parsedData.image_option3) setImagePreview3(parsedData.image_option3);
-          if (parsedData.image_option3_2) setImagePreview3_2(parsedData.image_option3_2);
-          
+          // Set visibility options based on saved data
           setShowOption2(!!parsedData.title_option2 || !!parsedData.image_option2 || 
             !!parsedData.unit_price_option2 || !!parsedData.delivery_time_option2 || 
             !!parsedData.description_option2);
@@ -160,13 +146,6 @@ export default function PriceOptionsModal({
             !!parsedData.description_option3);
         } else if (initialData) {
           setFormData(initialData);
-          
-          if (initialData.image_option1) setImagePreview1(initialData.image_option1);
-          if (initialData.image_option1_2) setImagePreview1_2(initialData.image_option1_2);
-          if (initialData.image_option2) setImagePreview2(initialData.image_option2);
-          if (initialData.image_option2_2) setImagePreview2_2(initialData.image_option2_2);
-          if (initialData.image_option3) setImagePreview3(initialData.image_option3);
-          if (initialData.image_option3_2) setImagePreview3_2(initialData.image_option3_2);
           
           const hasOption2Data = initialData.title_option2 || initialData.image_option2 || 
             initialData.unit_price_option2 || initialData.delivery_time_option2 || 
@@ -267,20 +246,6 @@ export default function PriceOptionsModal({
       [field2]: images[1] || null,
       [fieldExtra]: images.slice(2)
     }));
-    
-    // Update previews
-    if (optionNum === 1) {
-        setImagePreview1(images[0] || null);
-        setImagePreview1_2(images[1] || null);
-    }
-    if (optionNum === 2) {
-        setImagePreview2(images[0] || null);
-        setImagePreview2_2(images[1] || null);
-    }
-    if (optionNum === 3) {
-        setImagePreview3(images[0] || null);
-        setImagePreview3_2(images[1] || null);
-    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number) => {

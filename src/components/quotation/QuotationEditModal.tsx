@@ -98,7 +98,7 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
       };
 
       // Perform the update using the UUID
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('quotations')
         .update(updateData as never)
         .eq('id', quotationUuid)

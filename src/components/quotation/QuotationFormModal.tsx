@@ -13,10 +13,6 @@ import { useDropzone } from "react-dropzone";
 import { countries as countryCodes } from 'country-flag-icons';
 import { supabase } from "@/lib/supabase";
 
-// Helper to validate Supabase image URLs
-const isValidImageUrl = (url: string | null | undefined) =>
-  !!url && url.startsWith('https://cfhochnjniddaztgwrbk.supabase.co/');
-
 // Shipping methods based on destination region
 const getShippingMethods = (region: string) => {
   const methods = ["Sea Freight", "Air Freight"];
