@@ -165,6 +165,9 @@ export default function QuotationPage() {
             unit_price_option3,
             unit_weight_option3,
             image_option3_2,
+            extra_images_option1,
+            extra_images_option2,
+            extra_images_option3,
             receiver_name,
             receiver_phone,
             receiver_address
@@ -214,6 +217,7 @@ export default function QuotationPage() {
                 unit_price_option1: item.unit_price_option1 ?? null,
                 unit_weight_option1: item.unit_weight_option1 ?? null,
                 image_option1_2: item.image_option1_2 ?? null,
+                extra_images_option1: item.extra_images_option1 ?? [],
               });
             }
             
@@ -230,6 +234,7 @@ export default function QuotationPage() {
                 unit_price_option2: item.unit_price_option2 ?? null,
                 unit_weight_option2: item.unit_weight_option2 ?? null,
                 image_option2_2: item.image_option2_2 ?? null,
+                extra_images_option2: item.extra_images_option2 ?? [],
               });
             }
             
@@ -246,6 +251,7 @@ export default function QuotationPage() {
                 unit_price_option3: item.unit_price_option3 ?? null,
                 unit_weight_option3: item.unit_weight_option3 ?? null,
                 image_option3_2: item.image_option3_2 ?? null,
+                extra_images_option3: item.extra_images_option3 ?? [],
               });
             }
 

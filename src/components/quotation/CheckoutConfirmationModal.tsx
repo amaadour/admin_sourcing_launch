@@ -94,7 +94,7 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
         
         const { data, error } = await supabase
           .from('quotations')
-          .select('id, title_option1, title_option2, title_option3, total_price_option1, total_price_option2, total_price_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, description_option1, description_option2, description_option3, image_option1, image_option2, image_option3, selected_option, Quotation_fees')
+          .select('id, title_option1, title_option2, title_option3, total_price_option1, total_price_option2, total_price_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, description_option1, description_option2, description_option3, image_option1, image_option2, image_option3, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, Quotation_fees')
           .eq('quotation_id', quotation.quotation_id)
           .single();
           
@@ -127,7 +127,8 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
               deliveryTime: data.delivery_time_option1 || 'N/A',
               description: data.description_option1,
               modelName: data.title_option1,
-              modelImage: data.image_option1 || "/images/product/product-01.jpg"
+              modelImage: data.image_option1 || "/images/product/product-01.jpg",
+              extra_images_option1: data.extra_images_option1 || []
             });
           }
           
@@ -139,7 +140,8 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
               deliveryTime: data.delivery_time_option2 || 'N/A',
               description: data.description_option2,
               modelName: data.title_option2,
-              modelImage: data.image_option2 || "/images/product/product-01.jpg"
+              modelImage: data.image_option2 || "/images/product/product-01.jpg",
+              extra_images_option2: data.extra_images_option2 || []
             });
           }
           
@@ -151,7 +153,8 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
               deliveryTime: data.delivery_time_option3 || 'N/A',
               description: data.description_option3,
               modelName: data.title_option3,
-              modelImage: data.image_option3 || "/images/product/product-01.jpg"
+              modelImage: data.image_option3 || "/images/product/product-01.jpg",
+              extra_images_option3: data.extra_images_option3 || []
             });
           }
           

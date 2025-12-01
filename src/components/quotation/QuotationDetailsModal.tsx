@@ -413,11 +413,14 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
               const rawUnitWeight = (option as any)[`unit_weight_option${optionNum}`] as unknown as string | number | undefined;
               const unitWeight = (typeof rawUnitWeight === 'string' || typeof rawUnitWeight === 'number') ? rawUnitWeight : (option.unitWeightGrams ?? '-');
               // Gather all image fields for this option
+              const extraImagesKey = `extra_images_option${optionNum}`;
+              const extraImages = (option[extraImagesKey] as string[] | undefined) || [];
               const imageFields = [
                 option.modelImage,
                 ...Object.keys(option)
                   .filter((key) => key.startsWith(`image_option${optionNum}_`) && option[key])
-                  .map((key) => option[key])
+                  .map((key) => option[key]),
+                ...extraImages
               ].filter(Boolean);
 
               return (

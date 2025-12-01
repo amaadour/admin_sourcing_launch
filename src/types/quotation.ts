@@ -7,7 +7,7 @@ export interface PriceOption {
   modelName?: string;
   modelImage?: string;
   unitWeightGrams?: string | number;
-  [key: string]: unknown; // Allow dynamic image fields like image_option1_2
+  [key: string]: unknown; // Allow dynamic image fields like image_option1_2, extra_images_option1, etc.
 }
 
 export interface QuotationProduct {
