@@ -73,6 +73,9 @@ export interface QuotationData {
   image_option1_2?: string;
   image_option2_2?: string;
   image_option3_2?: string;
+  extra_images_option1?: string[];
+  extra_images_option2?: string[];
+  extra_images_option3?: string[];
   receiver_name?: string;
   receiver_phone?: string;
   receiver_address?: string;

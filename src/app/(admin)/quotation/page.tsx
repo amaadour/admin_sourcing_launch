@@ -155,6 +155,7 @@ export default function QuotationPage() {
           title_option1?: string;
           image_option1?: string;
           image_option1_2?: string;
+          extra_images_option1?: string[];
           price_description_option1?: string;
           unit_price_option1?: number;
           unit_weight_option1?: number;
@@ -164,6 +165,7 @@ export default function QuotationPage() {
           title_option2?: string;
           image_option2?: string;
           image_option2_2?: string;
+          extra_images_option2?: string[];
           price_description_option2?: string;
           unit_price_option2?: number;
           unit_weight_option2?: number;
@@ -173,6 +175,7 @@ export default function QuotationPage() {
           total_price_option3?: string;
           image_option3?: string;
           image_option3_2?: string;
+          extra_images_option3?: string[];
           price_description_option3?: string;
           unit_price_option3?: number;
           unit_weight_option3?: number;
@@ -241,6 +244,7 @@ export default function QuotationPage() {
           total_price_option1: item.total_price_option1 !== undefined ? String(item.total_price_option1) : undefined,
           image_option1: item.image_option1,
           image_option1_2: item.image_option1_2,
+          extra_images_option1: item.extra_images_option1,
           price_description_option1: item.price_description_option1,
           unit_price_option1: item.unit_price_option1 ? Number(item.unit_price_option1) : undefined,
           unit_weight_option1: item.unit_weight_option1 ? Number(item.unit_weight_option1) : undefined,
@@ -250,6 +254,7 @@ export default function QuotationPage() {
           total_price_option2: item.total_price_option2,
           image_option2: item.image_option2,
           image_option2_2: item.image_option2_2,
+          extra_images_option2: item.extra_images_option2,
           price_description_option2: item.price_description_option2,
           unit_price_option2: item.unit_price_option2,
           unit_weight_option2: item.unit_weight_option2,
@@ -259,6 +264,7 @@ export default function QuotationPage() {
           total_price_option3: item.total_price_option3,
           image_option3: item.image_option3,
           image_option3_2: item.image_option3_2,
+          extra_images_option3: item.extra_images_option3,
           price_description_option3: item.price_description_option3,
           unit_price_option3: item.unit_price_option3,
           unit_weight_option3: item.unit_weight_option3,
@@ -843,6 +849,9 @@ export default function QuotationPage() {
             image_option1_2: currentQuotation.image_option1_2,
             image_option2_2: currentQuotation.image_option2_2,
             image_option3_2: currentQuotation.image_option3_2,
+            extra_images_option1: currentQuotation.extra_images_option1,
+            extra_images_option2: currentQuotation.extra_images_option2,
+            extra_images_option3: currentQuotation.extra_images_option3,
           }}
           onUpdate={handleQuotationUpdate}
         />

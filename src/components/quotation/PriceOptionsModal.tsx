@@ -31,6 +31,9 @@ interface PriceOptionsData {
   title_option3?: string;
   image_option3: string | null;
   image_option3_2?: string | null;
+  extra_images_option1?: string[];
+  extra_images_option2?: string[];
+  extra_images_option3?: string[];
   unit_price_option3?: number;
   unit_weight_option3?: number;
   delivery_time_option3?: string;
@@ -70,6 +73,7 @@ export default function PriceOptionsModal({
     title_option1: initialData?.title_option1 || "",
     image_option1: initialData?.image_option1 || null,
     image_option1_2: initialData?.image_option1_2 || null,
+    extra_images_option1: initialData?.extra_images_option1 || [],
     unit_price_option1: initialData?.unit_price_option1,
     unit_weight_option1: initialData?.unit_weight_option1,
     delivery_time_option1: initialData?.delivery_time_option1 || "",
@@ -77,6 +81,7 @@ export default function PriceOptionsModal({
     title_option2: initialData?.title_option2,
     image_option2: initialData?.image_option2 || null,
     image_option2_2: initialData?.image_option2_2 || null,
+    extra_images_option2: initialData?.extra_images_option2 || [],
     unit_price_option2: initialData?.unit_price_option2,
     unit_weight_option2: initialData?.unit_weight_option2,
     delivery_time_option2: initialData?.delivery_time_option2 || "",
@@ -84,6 +89,7 @@ export default function PriceOptionsModal({
     title_option3: initialData?.title_option3,
     image_option3: initialData?.image_option3 || null,
     image_option3_2: initialData?.image_option3_2 || null,
+    extra_images_option3: initialData?.extra_images_option3 || [],
     unit_price_option3: initialData?.unit_price_option3,
     unit_weight_option3: initialData?.unit_weight_option3,
     delivery_time_option3: initialData?.delivery_time_option3 || "",
@@ -112,6 +118,7 @@ export default function PriceOptionsModal({
             if (!parsedData.description_option1 && initialData.description_option1) parsedData.description_option1 = initialData.description_option1;
             if (!parsedData.image_option1 && initialData.image_option1) parsedData.image_option1 = initialData.image_option1;
             if (!parsedData.image_option1_2 && initialData.image_option1_2) parsedData.image_option1_2 = initialData.image_option1_2;
+            if ((!parsedData.extra_images_option1 || parsedData.extra_images_option1.length === 0) && initialData.extra_images_option1?.length) parsedData.extra_images_option1 = initialData.extra_images_option1;
 
             // Option 2
             if (!parsedData.title_option2 && initialData.title_option2) parsedData.title_option2 = initialData.title_option2;
@@ -121,6 +128,7 @@ export default function PriceOptionsModal({
             if (!parsedData.description_option2 && initialData.description_option2) parsedData.description_option2 = initialData.description_option2;
             if (!parsedData.image_option2 && initialData.image_option2) parsedData.image_option2 = initialData.image_option2;
             if (!parsedData.image_option2_2 && initialData.image_option2_2) parsedData.image_option2_2 = initialData.image_option2_2;
+            if ((!parsedData.extra_images_option2 || parsedData.extra_images_option2.length === 0) && initialData.extra_images_option2?.length) parsedData.extra_images_option2 = initialData.extra_images_option2;
 
             // Option 3
             if (!parsedData.title_option3 && initialData.title_option3) parsedData.title_option3 = initialData.title_option3;
@@ -130,6 +138,7 @@ export default function PriceOptionsModal({
             if (!parsedData.description_option3 && initialData.description_option3) parsedData.description_option3 = initialData.description_option3;
             if (!parsedData.image_option3 && initialData.image_option3) parsedData.image_option3 = initialData.image_option3;
             if (!parsedData.image_option3_2 && initialData.image_option3_2) parsedData.image_option3_2 = initialData.image_option3_2;
+            if ((!parsedData.extra_images_option3 || parsedData.extra_images_option3.length === 0) && initialData.extra_images_option3?.length) parsedData.extra_images_option3 = initialData.extra_images_option3;
           }
 
           setFormData(parsedData);
@@ -232,13 +241,66 @@ export default function PriceOptionsModal({
     }
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number, isExtra = false) => {
+  // Helper to get all images for an option as a flat array
+  const getAllImages = (optionNum: number): string[] => {
+    const list: string[] = [];
+    // Use current state
+    const img1 = formData[`image_option${optionNum}` as keyof PriceOptionsData] as string | null;
+    const img2 = formData[`image_option${optionNum}_2` as keyof PriceOptionsData] as string | null;
+    const extras = formData[`extra_images_option${optionNum}` as keyof PriceOptionsData] as string[] || [];
+
+    if (img1) list.push(img1);
+    if (img2) list.push(img2);
+    if (extras && Array.isArray(extras)) list.push(...extras);
+    return list;
+  };
+
+  // Helper to distribute images back to columns
+  const updateOptionImages = (optionNum: number, images: string[]) => {
+    const field1 = `image_option${optionNum}` as keyof PriceOptionsData;
+    const field2 = `image_option${optionNum}_2` as keyof PriceOptionsData;
+    const fieldExtra = `extra_images_option${optionNum}` as keyof PriceOptionsData;
+
+    setFormData(prev => ({
+      ...prev,
+      [field1]: images[0] || null,
+      [field2]: images[1] || null,
+      [fieldExtra]: images.slice(2)
+    }));
+    
+    // Update previews
+    if (optionNum === 1) {
+        setImagePreview1(images[0] || null);
+        setImagePreview1_2(images[1] || null);
+    }
+    if (optionNum === 2) {
+        setImagePreview2(images[0] || null);
+        setImagePreview2_2(images[1] || null);
+    }
+    if (optionNum === 3) {
+        setImagePreview3(images[0] || null);
+        setImagePreview3_2(images[1] || null);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number) => {
     const file = e.target.files?.[0];
     if (!file) {
       customToast({
         variant: "destructive",
         title: "Error",
         description: "Please select a file to upload"
+      });
+      return;
+    }
+
+    // Check limit (max 10 images)
+    const currentImages = getAllImages(optionNumber);
+    if (currentImages.length >= 10) {
+      customToast({
+        variant: "destructive",
+        title: "Error",
+        description: "You can upload a maximum of 10 images per option"
       });
       return;
     }
@@ -272,7 +334,8 @@ export default function PriceOptionsModal({
       const fileExt = file.name.split(".").pop();
       const timestamp = Date.now();
       const uniqueId = `${timestamp}-${Math.random().toString(36).substring(2, 15)}`;
-      const fileName = `option${optionNumber}${isExtra ? '_2' : ''}-${uniqueId}.${fileExt}`;
+      // Use simplified naming convention for internal storage, doesn't affect display order
+      const fileName = `option${optionNumber}-img-${uniqueId}.${fileExt}`;
 
       // Create unique path for each option
       const filePath = `price_options/${quotationId}/option${optionNumber}/${fileName}`;
@@ -297,20 +360,9 @@ export default function PriceOptionsModal({
 
       const urlWithCacheBust = `${publicUrl}?t=${timestamp}`;
 
-      // Update form data with the new image URL
-      const field = `image_option${optionNumber}${isExtra ? '_2' : ''}` as keyof PriceOptionsData;
-      setFormData(prev => ({
-        ...prev,
-        [field]: urlWithCacheBust
-      }));
-
-      // Update image preview with the new URL
-      if (optionNumber === 1 && !isExtra) setImagePreview1(urlWithCacheBust);
-      if (optionNumber === 1 && isExtra) setImagePreview1_2(urlWithCacheBust);
-      if (optionNumber === 2 && !isExtra) setImagePreview2(urlWithCacheBust);
-      if (optionNumber === 2 && isExtra) setImagePreview2_2(urlWithCacheBust);
-      if (optionNumber === 3 && !isExtra) setImagePreview3(urlWithCacheBust);
-      if (optionNumber === 3 && isExtra) setImagePreview3_2(urlWithCacheBust);
+      // Add to images list and update form data
+      const newImages = [...currentImages, urlWithCacheBust];
+      updateOptionImages(optionNumber, newImages);
 
       customToast({
         variant: "default",
@@ -344,6 +396,7 @@ export default function PriceOptionsModal({
         title_option1: formData.title_option1,
         image_option1: formData.image_option1,
         image_option1_2: formData.image_option1_2,
+        extra_images_option1: formData.extra_images_option1,
         unit_price_option1: formData.unit_price_option1,
         unit_weight_option1: formData.unit_weight_option1,
         delivery_time_option1: formData.delivery_time_option1,
@@ -351,6 +404,7 @@ export default function PriceOptionsModal({
         title_option2: formData.title_option2,
         image_option2: formData.image_option2,
         image_option2_2: formData.image_option2_2,
+        extra_images_option2: formData.extra_images_option2,
         unit_price_option2: formData.unit_price_option2,
         unit_weight_option2: formData.unit_weight_option2,
         delivery_time_option2: formData.delivery_time_option2,
@@ -358,6 +412,7 @@ export default function PriceOptionsModal({
         title_option3: formData.title_option3,
         image_option3: formData.image_option3,
         image_option3_2: formData.image_option3_2,
+        extra_images_option3: formData.extra_images_option3,
         unit_price_option3: formData.unit_price_option3,
         unit_weight_option3: formData.unit_weight_option3,
         delivery_time_option3: formData.delivery_time_option3,
@@ -393,19 +448,13 @@ export default function PriceOptionsModal({
     }
   };
 
-  const removeImage = (optionNumber: number, isExtra: boolean) => {
-    const field = `image_option${optionNumber}${isExtra ? '_2' : ''}` as keyof PriceOptionsData;
-    setFormData(prev => ({
-      ...prev,
-      [field]: null
-    }));
-    
-    if (optionNumber === 1 && !isExtra) setImagePreview1(null);
-    if (optionNumber === 1 && isExtra) setImagePreview1_2(null);
-    if (optionNumber === 2 && !isExtra) setImagePreview2(null);
-    if (optionNumber === 2 && isExtra) setImagePreview2_2(null);
-    if (optionNumber === 3 && !isExtra) setImagePreview3(null);
-    if (optionNumber === 3 && isExtra) setImagePreview3_2(null);
+  const removeImage = (optionNumber: number, index: number) => {
+    const currentImages = getAllImages(optionNumber);
+    const newImages = [...currentImages];
+    // Remove image at index
+    newImages.splice(index, 1);
+    // Update state
+    updateOptionImages(optionNumber, newImages);
   };
 
   const renderOption1Content = () => (
@@ -487,61 +536,47 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images ({getAllImages(1).length}/10)
+          </Label>
           <div className="grid grid-cols-2 gap-3">
-            {/* Main Image */}
-            <div className="relative aspect-square">
-              {imagePreview1 && isValidImageUrl(imagePreview1) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview1}
-                    alt="Option 1 Main"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(1, false)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 1)} />
-                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
-                </label>
-              )}
-            </div>
+            {getAllImages(1).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <Image
+                      src={url}
+                      alt={`Option 1 Image ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(1, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-            {/* Extra Image */}
-            <div className="relative aspect-square">
-              {imagePreview1_2 && isValidImageUrl(imagePreview1_2) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview1_2}
-                    alt="Option 1 Extra"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(1, true)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
+            {getAllImages(1).length < 10 && (
+              <div className="relative aspect-square">
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 1, true)} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => handleImageUpload(e, 1)} 
+                    disabled={isLoading}
+                  />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image</span>
                 </label>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -626,61 +661,47 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images ({getAllImages(2).length}/10)
+          </Label>
           <div className="grid grid-cols-2 gap-3">
-            {/* Main Image */}
-            <div className="relative aspect-square">
-              {imagePreview2 && isValidImageUrl(imagePreview2) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview2}
-                    alt="Option 2 Main"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(2, false)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 2)} />
-                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
-                </label>
-              )}
-            </div>
+            {getAllImages(2).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <Image
+                      src={url}
+                      alt={`Option 2 Image ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(2, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-            {/* Extra Image */}
-            <div className="relative aspect-square">
-              {imagePreview2_2 && isValidImageUrl(imagePreview2_2) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview2_2}
-                    alt="Option 2 Extra"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(2, true)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
+            {getAllImages(2).length < 10 && (
+              <div className="relative aspect-square">
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 2, true)} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => handleImageUpload(e, 2)} 
+                    disabled={isLoading}
+                  />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image</span>
                 </label>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -765,61 +786,47 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images ({getAllImages(3).length}/10)
+          </Label>
           <div className="grid grid-cols-2 gap-3">
-            {/* Main Image */}
-            <div className="relative aspect-square">
-              {imagePreview3 && isValidImageUrl(imagePreview3) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview3}
-                    alt="Option 3 Main"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(3, false)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 3)} />
-                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
-                </label>
-              )}
-            </div>
+            {getAllImages(3).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <Image
+                      src={url}
+                      alt={`Option 3 Image ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(3, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-            {/* Extra Image */}
-            <div className="relative aspect-square">
-              {imagePreview3_2 && isValidImageUrl(imagePreview3_2) ? (
-                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
-                  <Image
-                    src={imagePreview3_2}
-                    alt="Option 3 Extra"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(3, true)}
-                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
+            {getAllImages(3).length < 10 && (
+              <div className="relative aspect-square">
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
-                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 3, true)} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => handleImageUpload(e, 3)} 
+                    disabled={isLoading}
+                  />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image</span>
                 </label>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
