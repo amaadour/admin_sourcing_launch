@@ -22,6 +22,7 @@ interface QuotationWithFees extends QuotationData {
 }
 
 const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClose, quotation, openCheckoutModal }) => {
+  
   const [selectedOption, setSelectedOption] = useState<string | null>(
     quotation.selected_option ? String(quotation.selected_option) : null
   );
@@ -539,13 +540,13 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      showCloseButton={true}
+      showCloseButton={false}
       className="max-w-4xl mx-auto"
     >
       <div className="flex flex-col h-full max-h-[85vh]">
         {/* Fixed Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 pb-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-bold text-[#0D47A1] dark:text-blue-400 flex items-center">
               Quotation Details <span className="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">ID: {quotation.quotation_id || quotation.id}</span>
             </h2>
@@ -565,6 +566,27 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
               </Badge>
             </div>
           </div>
+          <button
+            onClick={onClose}
+            className="ml-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-700 active:scale-95 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-white"
+            aria-label="Close modal"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current"
+            >
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
 
         {/* Scrollable Content */}
@@ -652,6 +674,37 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
             </div>
           </div>
         </div>
+
+        {/* Receiver Information */}
+        {(quotation.receiver_name || quotation.receiver_phone || quotation.receiver_address) && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+              Receiver Information
+            </h3>
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Receiver Name</span>
+                  <p className="text-gray-800 dark:text-gray-200 font-medium">
+                    {quotation.receiver_name || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Phone Number</span>
+                  <p className="text-gray-800 dark:text-gray-200 font-medium">
+                    {quotation.receiver_phone || "N/A"}
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Delivery Address</span>
+                  <p className="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-line">
+                    {quotation.receiver_address || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Fees Section */}
         <div className="mb-6">

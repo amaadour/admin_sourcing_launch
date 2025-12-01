@@ -34,7 +34,6 @@ interface QuotationWithFees extends BaseQuotationData {
 interface CheckoutConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // onConfirm is still in the props interface for compatibility, but we don't use it
   onConfirm: (paymentMethod?: string) => void;
   quotation: QuotationWithFees;
 }
@@ -52,7 +51,7 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
   onConfirm,
   quotation
 }) => {
-  const auth = useAuth(); // Get authentication context
+  const auth = useAuth();
   const [selectedBank, setSelectedBank] = useState<BankType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedPriceOption, setSelectedPriceOption] = useState<PriceOption | null>(null);
@@ -64,26 +63,21 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [quotationFees, setQuotationFees] = useState<number | null>(null);
   
-  // Debug: log the quotation object to check for Quotation_fees
   useEffect(() => {
     console.log('Quotation in modal:', quotation);
   }, [quotation]);
   
-  // Log the quotation object for debugging
   useEffect(() => {
     console.log("Quotation object:", quotation);
     
-    // Global error handler to prevent browser popups
     const handleGlobalError = (event: ErrorEvent) => {
-      // Prevent the browser from showing the default error dialog
       event.preventDefault();
       console.error("Globally caught error:", event.error || event.message);
-      return true; // Prevents the browser error popup
+      return true;
     };
     
     window.addEventListener('error', handleGlobalError);
     
-    // Add unhandled promise rejection handler
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       console.error("Unhandled promise rejection:", event.reason);
@@ -92,14 +86,12 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
     
-    // Fetch the actual UUID on component load and get complete price options
     const fetchQuotationData = async () => {
       try {
         if (!quotation.quotation_id) return;
         
         setIsLoadingOptions(true);
         
-        // Get the quotation UUID and all option data
         const { data, error } = await supabase
           .from('quotations')
           .select('id, title_option1, title_option2, title_option3, total_price_option1, total_price_option2, total_price_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, description_option1, description_option2, description_option3, image_option1, image_option2, image_option3, selected_option, Quotation_fees')
@@ -115,7 +107,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
         if (data) {
           console.log("Full quotation data from database:", data);
           setQuotationUuid(data.id);
-          // Always set the service fee on the quotation object and local state
           if (data.Quotation_fees !== undefined) {
             (quotation as QuotationWithFees).Quotation_fees = data.Quotation_fees;
             let fee = data.Quotation_fees;
@@ -126,10 +117,8 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
             setQuotationFees(null);
           }
           
-          // Recreate price options array from the database data
           const fullPriceOptions: PriceOption[] = [];
           
-          // Add option 1 if it exists
           if (data.title_option1) {
             fullPriceOptions.push({
               id: '1',
@@ -142,7 +131,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
             });
           }
           
-          // Add option 2 if it exists
           if (data.title_option2) {
             fullPriceOptions.push({
               id: '2',
@@ -155,7 +143,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
             });
           }
           
-          // Add option 3 if it exists
           if (data.title_option3) {
             fullPriceOptions.push({
               id: '3',
@@ -168,12 +155,10 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
             });
           }
           
-          // Set the price options if we found more than what was passed in
           if (fullPriceOptions.length > (quotation.priceOptions?.length || 0)) {
             console.log("Setting full price options:", fullPriceOptions);
             setPriceOptions(fullPriceOptions);
             
-            // Set selected option based on the database value
             if (data.selected_option && data.selected_option > 0 && data.selected_option <= fullPriceOptions.length) {
               setSelectedPriceOption(fullPriceOptions[data.selected_option - 1]);
             }
@@ -188,17 +173,14 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     
     fetchQuotationData();
     
-    // Cleanup event listeners on unmount
     return () => {
       window.removeEventListener('error', handleGlobalError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, [quotation]);
   
-  // Set initial selected price option based on quotation.selected_option
   useEffect(() => {
     if (quotation.priceOptions?.length && quotation.selected_option) {
-      // selected_option is 1-based, array is 0-based
       const optionIndex = quotation.selected_option - 1;
       if (optionIndex >= 0 && optionIndex < quotation.priceOptions.length) {
         setSelectedPriceOption(quotation.priceOptions[optionIndex]);
@@ -206,46 +188,33 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     }
   }, [quotation.priceOptions, quotation.selected_option]);
 
-  // Add early safety patching
   useEffect(() => {
-    // This is a direct patch to fix the parent component's error
-    // Create a patching function we can call from anywhere
     const patchParentComponentError = () => {
       try {
-        // Define our patch functions
         const safeHandleCheckoutConfirm = (originalFn: (...args: unknown[]) => unknown) => {
           return function patched(this: unknown, ...args: unknown[]) {
             try {
-              // If there's no payment method in args, try to get it from our global var
               if (!args[0] && window.lastSelectedPaymentMethod) {
                 console.log('PATCH: Injecting payment method from window:', window.lastSelectedPaymentMethod);
                 args[0] = window.lastSelectedPaymentMethod;
               }
               
-              // Additionally check if there's a missing paymentMethod var in scope
               const fnStr = originalFn.toString();
               if (fnStr.includes("!paymentMethod") || fnStr.includes("No payment method selected")) {
-                // This function likely has the error we're trying to patch
                 console.log('PATCH: Found target function with payment method check');
-                
-                // Create a global backup to avoid the error
                 (window as Window & typeof globalThis & { __paymentMethod: unknown }).__paymentMethod = window.lastSelectedPaymentMethod;
               }
               
               return originalFn.apply(this, args);
             } catch (e) {
               console.error('Error in patched function:', e);
-              // Don't rethrow to prevent UI errors
               return null;
             }
           };
         };
         
-        // Try to find and patch the parent component's functions
         if (window.parent) {
           console.log('Attempting to patch parent window');
-          // This is a technique to access parent component functions
-          // It might not work in all cases but it's worth trying
           const parentWindow = window.parent as Window & typeof globalThis & { __safeHandleCheckoutConfirm: unknown };
           parentWindow.__safeHandleCheckoutConfirm = safeHandleCheckoutConfirm;
         }
@@ -254,12 +223,9 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
       }
     };
     
-    // Apply the patch
     patchParentComponentError();
     
-    // Also try to inject a global workaround to the specific error
     try {
-      // Create a global variable that matches what the parent is looking for
       const globalWindow = window as Window & typeof globalThis & { paymentMethod: BankType | null };
       globalWindow.paymentMethod = selectedBank;
       console.log('Created global paymentMethod backup:', selectedBank);
@@ -268,23 +234,18 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     }
   }, [selectedBank]);
 
-  // Calculate the total price for the selected option
   const getTotalToPay = () => {
     if (!selectedPriceOption) return 0;
-    // Find the correct unit price and unit weight for the selected option
     const optionNum = selectedPriceOption.id;
-    // Try to get unit price and service fee from the selectedPriceOption or quotation
     const rawUnitPrice = selectedPriceOption[`unit_price_option${optionNum}`];
     const unitPrice = (typeof rawUnitPrice === 'string' || typeof rawUnitPrice === 'number' || rawUnitPrice == null)
       ? parseNumeric(rawUnitPrice)
       : 0;
     const quantity = parseNumeric(quotation.quantity);
-    // Service fee: try to get from quotation or selectedPriceOption
     let serviceFee = 0;
     if ((quotation as QuotationWithFees)?.Quotation_fees) {
       serviceFee = parseNumeric((quotation as QuotationWithFees).Quotation_fees);
     }
-    // Fallback: try to get from selectedPriceOption
     if (!serviceFee && selectedPriceOption.serviceFee) {
       const rawServiceFee = selectedPriceOption.serviceFee;
       serviceFee = (typeof rawServiceFee === 'string' || typeof rawServiceFee === 'number' || rawServiceFee == null)
@@ -335,14 +296,13 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     try {
       console.log(`Updating selected_option to ${optionIndex + 1} for quotation ${quotationUuid}`);
       
-      // Update the selected option in the database using the option index + 1 (1-based indexing)
       const { error: updateError } = await supabase
         .from('quotations')
         .update({ 
-          selected_option: optionIndex + 1, // Convert to 1-based index
+          selected_option: optionIndex + 1,
           updated_at: new Date().toISOString()
         })
-        .eq('id', quotationUuid); // Use the UUID, not the formatted ID
+        .eq('id', quotationUuid);
 
       if (updateError) {
         throw new Error(`Failed to update selected option: ${updateError.message}`);
@@ -358,9 +318,7 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     }
   };
 
-  // Bypass approach: Direct payment creation without parent callbacks
   const handleDirectPayment = async (): Promise<void> => {
-    // Check for critical data first
     if (!auth?.user?.id) {
       console.error('No authenticated user found');
       setErrorMessage('Authentication error. Please log in again.');
@@ -381,7 +339,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
       setIsLoading(true);
       setIsProcessing(true);
       
-      // Extract amount from price
       const amount = getTotalToPay();
       
       if (isNaN(amount)) {
@@ -392,22 +349,18 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
         return;
       }
       
-      // Store in sessionStorage before anything else happens
       try {
         sessionStorage.setItem('payment_in_progress', 'true');
         sessionStorage.setItem('payment_method', selectedBank);
         sessionStorage.setItem('quotation_id', quotationUuid);
       } catch (err) {
         console.error('Failed to set session storage:', err);
-        // Continue anyway
       }
       
-      // Generate reference number
       const timestamp = Date.now().toString().slice(-6);
       const randomPart = Math.random().toString(36).substr(2, 6).toUpperCase();
       const referenceNumber = `PAY-${timestamp}-${randomPart}`;
       
-      // Store payment info in window object for recovery
       window.lastPaymentInfo = {
         reference: referenceNumber,
         method: selectedBank,
@@ -416,7 +369,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
         timestamp: new Date().toISOString()
       };
       
-      // Create payment object
       const paymentData = {
         user_id: auth.user.id,
         quotation_ids: [quotationUuid],
@@ -429,7 +381,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
       
       console.log('Creating payment:', paymentData);
       
-      // Insert payment into Supabase
       const { data, error } = await supabase
         .from('payments')
         .insert([paymentData])
@@ -446,28 +397,20 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
       
       console.log('Payment created successfully:', data);
       
-      // Update quotation status asynchronously (don't wait)
       updateQuotationStatus(quotationUuid)
         .catch(err => console.error('Failed to update quotation, but payment worked:', err));
         
-      // Show success to user
       toast.success('Payment created successfully!');
       
-      // Call the onConfirm callback with the selected payment method
       if (typeof onConfirm === 'function') {
         try {
-          // Store payment method for global access before calling onConfirm
           window.lastSelectedPaymentMethod = selectedBank;
-          
-          // Call onConfirm, but don't await the result to avoid dependency on parent implementation
           onConfirm(selectedBank);
         } catch (err) {
           console.error('Error calling onConfirm callback:', err);
-          // Continue anyway
         }
       }
       
-      // Close modal
       if (typeof onClose === 'function') {
         try {
           onClose();
@@ -476,17 +419,13 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
         }
       }
       
-      // Show final success with redirect info
       toast.success('Redirecting to payment details...');
       
-      // Redirect after delay
       setTimeout(() => {
         try {
-          // Simply redirect with the refresh parameter to trigger auto-refresh
           window.location.href = `/payment?ref=${referenceNumber}&refresh=true`;
         } catch (err) {
           console.error('Redirect failed:', err);
-          // Show clickable link as fallback
           toast.success('Click to view payment details', {
             duration: 10000,
             action: {
@@ -504,7 +443,6 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
     }
   };
   
-  // Helper function to update quotation status
   const updateQuotationStatus = async (id: string): Promise<void> => {
     try {
       console.log(`Updating quotation status for ID: ${id}`);
@@ -528,266 +466,315 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
 
   const banks: BankType[] = ['WISE', 'PAYONEER', 'BINANCE'];
 
+  const getBankIcon = (bank: BankType) => {
+    switch (bank) {
+      case 'WISE':
+        return '/images/banks/wise1.svg';
+      case 'PAYONEER':
+        return '/images/banks/payoneer.svg';
+      case 'BINANCE':
+        return '/images/banks/Binance_Logo.svg.png';
+      default:
+        return null;
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      className="w-full max-w-2xl mx-auto custom-scrollbar bg-white dark:bg-gray-900"
-      maxHeight="90vh"
+      showCloseButton={false}
+      className="max-w-3xl mx-auto"
     >
-      <div className="flex flex-col">
-        {/* Price Options Selection */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Select Price Option</h3>
-          {isLoadingOptions ? (
-            <div className="py-8 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#1E88E5] border-r-transparent align-[-0.125em]"></div>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">Loading all price options...</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {priceOptions.map((option, index) => (
-                <button
-                  key={option.id}
-                  onClick={() => handlePriceOptionSelect(option, index)}
-                  disabled={isUpdatingOption || !quotationUuid}
-                  className={`w-full flex items-center gap-4 p-4 border rounded-lg transition-colors ${
-                    selectedPriceOption?.id === option.id
-                      ? 'border-[#1E88E5] bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-[#1E88E5]'
-                  } ${(isUpdatingOption || !quotationUuid) ? 'opacity-50 cursor-not-allowed' : ''} relative bg-white dark:bg-gray-800`}
-                >
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={option.modelImage || "/images/product/product-01.jpg"}
-                      alt={option.modelName || "Product Option"}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          Option {parseInt(option.id)}
-                          {option.id === String(quotation.selected_option) && (
-                            <span className="ml-2 text-xs text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
-                              Currently Selected
-                            </span>
+      <div className="flex flex-col h-full max-h-[85vh]">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Complete Payment
+          </h2>
+          <button
+            onClick={onClose}
+            className="ml-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-700 active:scale-95 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-white"
+            aria-label="Close modal"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current"
+            >
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 min-h-0">
+          {/* Price Options Selection */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Select Price Option
+            </h3>
+            {isLoadingOptions ? (
+              <div className="py-8 text-center">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#1E88E5] border-r-transparent"></div>
+                <p className="mt-2 text-gray-600 dark:text-gray-300">Loading price options...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {priceOptions.map((option, index) => {
+                  const isSelected = selectedPriceOption?.id === option.id;
+                  const isCurrentlySelected = option.id === String(quotation.selected_option);
+                  const unitPrice = (() => {
+                    const val = option[`unit_price_option${option.id}`];
+                    const num = typeof val === 'string' ? parseFloat(val) : typeof val === 'number' ? val : NaN;
+                    return !isNaN(num) ? num : 0;
+                  })();
+                  
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => handlePriceOptionSelect(option, index)}
+                      disabled={isUpdatingOption || !quotationUuid}
+                      className={`relative w-full p-4 border-2 rounded-xl transition-all duration-200 text-left ${
+                        isSelected
+                          ? 'border-[#1E88E5] bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-[#1E88E5] hover:shadow-sm bg-white dark:bg-gray-800'
+                      } ${(isUpdatingOption || !quotationUuid) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 dark:border-gray-700">
+                          <Image
+                            src={option.modelImage || "/images/product/product-01.jpg"}
+                            alt={option.modelName || "Product Option"}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900 dark:text-white">
+                                Option {parseInt(option.id)}
+                              </h4>
+                              {isCurrentlySelected && (
+                                <span className="text-xs font-medium text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                                  Currently Selected
+                                </span>
+                              )}
+                              {isSelected && !isCurrentlySelected && (
+                                <span className="text-xs font-medium text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30 px-2 py-1 rounded-full">
+                                  Selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-[#1E88E5] dark:text-blue-400">
+                                ${unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">per unit</div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                            <span className="font-medium">Delivery:</span> {option.deliveryTime || 'N/A'}
+                          </p>
+                          {option.description && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
+                              {option.description}
+                            </p>
                           )}
-                        </h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          Delivery Time: {option.deliveryTime}
-                        </p>
+                        </div>
                       </div>
-                      <span className="text-lg font-bold text-[#1E88E5] dark:text-blue-400">
-                        {(() => {
-                          const val = option[`unit_price_option${option.id}`];
-                          const num = typeof val === 'string' ? parseFloat(val) : typeof val === 'number' ? val : NaN;
-                          return !isNaN(num) ? num.toLocaleString(undefined, { style: 'currency', currency: 'USD' }) : 'N/A';
-                        })()}
-                      </span>
-                    </div>
-                    {option.description && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                        {option.description}
-                      </p>
+                      {isUpdatingOption && isSelected && (
+                        <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 flex items-center justify-center rounded-xl">
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Payment Method Selection */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Select Payment Method
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              {banks.map((bank) => {
+                const icon = getBankIcon(bank);
+                return (
+                  <button
+                    key={bank}
+                    onClick={() => setSelectedBank(bank)}
+                    className={`relative p-4 border-2 rounded-xl transition-all duration-200 ${
+                      selectedBank === bank 
+                        ? 'border-[#1E88E5] bg-blue-50 dark:bg-blue-900/20 shadow-md' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-[#1E88E5] hover:shadow-sm bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    {icon && (
+                      <div className="relative w-12 h-12 mx-auto mb-2">
+                        <Image
+                          src={icon}
+                          alt={bank}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
                     )}
-                  </div>
-                  {isUpdatingOption && selectedPriceOption?.id === option.id && (
-                    <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/70 flex items-center justify-center">
-                      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className={`text-sm font-medium text-center ${
+                      selectedBank === bank
+                        ? 'text-[#1E88E5] dark:text-blue-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}>
+                      {bank}
                     </div>
-                  )}
-                </button>
-              ))}
+                    {selectedBank === bank && (
+                      <div className="absolute top-2 right-2">
+                        <div className="w-5 h-5 bg-[#1E88E5] rounded-full flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bank Information */}
+          {selectedBank && (
+            <div className="mb-6">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Bank Information</h4>
+                <BankInformation bank={selectedBank} />
+              </div>
+            </div>
+          )}
+
+          {/* Price Summary */}
+          {selectedPriceOption && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-5 border border-blue-200 dark:border-gray-600">
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Price Summary</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Unit Price:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {(() => {
+                      const val = selectedPriceOption[`unit_price_option${selectedPriceOption.id}`];
+                      const num = typeof val === 'string' ? parseFloat(val) : typeof val === 'number' ? val : NaN;
+                      return !isNaN(num) ? `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A';
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Quantity:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{parseNumeric(quotation.quantity)} units</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">Service Fee:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {quotationFees !== null
+                      ? `$${quotationFees.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : 'N/A'}
+                  </span>
+                </div>
+                <div className="border-t border-blue-200 dark:border-gray-600 pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-semibold text-gray-900 dark:text-white">Total Amount:</span>
+                    <span className="text-2xl font-bold text-[#1E88E5] dark:text-blue-400">
+                      ${getTotalToPay().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
             </div>
           )}
         </div>
 
-        {/* Payment Method Selection */}
-        <div className="p-4 bg-white dark:bg-gray-900">
-          <h4 className="text-base font-medium text-gray-900 dark:text-white mb-3">Select Payment Method</h4>
-          <div className="grid grid-cols-3 gap-3">
-            {banks.map((bank) => (
-              <button
-                key={bank}
-                onClick={() => setSelectedBank(bank)}
-                className={`py-2 px-4 text-center border rounded-lg transition-colors
-                  ${selectedBank === bank 
-                    ? 'border-[#1E88E5] bg-blue-50 text-[#1E88E5] dark:bg-blue-900/20 dark:text-blue-400' 
-                    : 'border-gray-200 dark:border-gray-700 hover:border-[#1E88E5] dark:hover:border-blue-400 text-gray-900 dark:text-white'
-                  }`}
-              >
-                {bank.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Bank Information */}
-        {selectedBank && (
-          <div className="px-4 pb-4">
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 dark:text-white mb-3">Bank Information</h4>
-              <BankInformation bank={selectedBank} />
-            </div>
-          </div>
-        )}
-
-        {/* Option Details Summary (move here) */}
-            {selectedPriceOption && (
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <h4 className="font-semibold mb-2 text-gray-800 dark:text-white">Selected Option Details</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Unit Price:</span>
-                  <span className="ml-2 font-medium text-gray-800 dark:text-white">
-                    {(() => {
-                      const val = selectedPriceOption[`unit_price_option${selectedPriceOption.id}`];
-                      if (typeof val === 'string' || typeof val === 'number') return val;
-                      return selectedPriceOption.price ?? 'N/A';
-                    })()}
-                  </span>
-                </div>
-                <div className="mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Unit Weight (grams):</span>
-                  <span className="ml-2 font-medium text-gray-800 dark:text-white">
-                    {(() => {
-                      const val = selectedPriceOption[`unit_weight_option${selectedPriceOption.id}`];
-                      if (typeof val === 'string' || typeof val === 'number') return val;
-                      return '-';
-                    })()}
-                  </span>
-                </div>
-                <div className="mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Delivery Time:</span>
-                  <span className="ml-2 font-medium text-gray-800 dark:text-white">
-                    {(() => {
-                      const val = selectedPriceOption[`delivery_time_option${selectedPriceOption.id}`];
-                      if (typeof val === 'string') return val;
-                      return selectedPriceOption.deliveryTime ?? 'N/A';
-                    })()}
-                  </span>
-                </div>
-                <div className="mb-2">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Description:</span>
-                  <span className="ml-2 text-gray-800 dark:text-white">
-                    {(() => {
-                      const val = selectedPriceOption[`description_option${selectedPriceOption.id}`];
-                      if (typeof val === 'string') return val;
-                      return selectedPriceOption.description ?? '';
-                    })()}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    selectedPriceOption[`image_option${selectedPriceOption.id}`],
-                    selectedPriceOption[`image_option${selectedPriceOption.id}_2`]
-                  ].filter((img): img is string => typeof img === 'string' && !!img).map((img, idx) => (
-                    <div key={idx} className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
-                      <Image
-                        src={img}
-                        alt={`Option Image ${idx+1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* Price Details at the bottom */}
-            <div className="mt-6">
-              <h5 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">Price Details</h5>
-              <ul className="text-sm text-gray-700 dark:text-gray-200 space-y-1">
-                <li>Price per unit: <span className="font-medium">{
-                  (() => {
-                    const val = selectedPriceOption[`unit_price_option${selectedPriceOption.id}`];
-                    const num = typeof val === 'string' ? parseFloat(val) : typeof val === 'number' ? val : NaN;
-                    return !isNaN(num) ? num.toLocaleString(undefined, { style: 'currency', currency: 'USD' }) : 'N/A';
-                  })()
-                }</span></li>
-                <li>Quantity: <span className="font-medium">{parseNumeric(quotation.quantity)}</span></li>
-                <li>Service fees: <span className="font-medium">{
-                  quotationFees !== null
-                    ? quotationFees.toLocaleString(undefined, { style: 'currency', currency: 'USD' })
-                    : 'N/A'
-                }</span></li>
-                <li>Total price: <span className="font-bold">{getTotalToPay().toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</span></li>
-              </ul>
-            </div>
-              </div>
-            )}
-
-        {/* Action Buttons and Calculation Breakdown */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
-          {/* Buttons */}
-          <div className="flex flex-col md:flex-row gap-3 w-full">
-              <button
-                onClick={onClose}
-                disabled={isProcessing}
-              className="w-full md:w-auto px-5 py-2 border border-f-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 text-black dark:text-white bg-white dark:bg-gray-900"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  setErrorMessage(null);
-                  if (selectedBank) {
-                    window.lastSelectedPaymentMethod = selectedBank;
-                    try {
-                      sessionStorage.setItem('last_selected_payment_method', selectedBank);
+        {/* Fixed Footer */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-5 flex-shrink-0 bg-white dark:bg-gray-800">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onClose}
+              disabled={isProcessing}
+              className="flex-1 sm:flex-none px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 text-gray-700 dark:text-gray-300 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                setErrorMessage(null);
+                if (selectedBank) {
+                  window.lastSelectedPaymentMethod = selectedBank;
+                  try {
+                    sessionStorage.setItem('last_selected_payment_method', selectedBank);
                   } catch {}
+                }
+                const resetTimeout = setTimeout(() => {
+                  if (isProcessing) {
+                    setIsProcessing(false);
+                    setIsLoading(false);
+                    setErrorMessage('The operation timed out. Please try again.');
                   }
-                  const resetTimeout = setTimeout(() => {
-                    if (isProcessing) {
-                      setIsProcessing(false);
-                      setIsLoading(false);
-                      setErrorMessage('The operation timed out. Please try again.');
-                    }
                 }, 15000);
-                  setTimeout(() => {
-                    handleDirectPayment()
+                setTimeout(() => {
+                  handleDirectPayment()
                     .then(() => clearTimeout(resetTimeout))
                     .catch(() => {
-                        clearTimeout(resetTimeout);
-                        setErrorMessage("There was a problem processing your payment. Please try again.");
-                        toast.error("Payment processing failed");
-                        setIsProcessing(false);
-                        setIsLoading(false);
-                      });
-                  }, 0);
-                }}
-                disabled={isProcessing || isLoading || !selectedBank || !selectedPriceOption || !quotationUuid}
-              className="w-full md:w-auto px-5 py-2 bg-[#1E88E5] text-white rounded-lg hover:bg-[#1976D2] dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {(isProcessing || isLoading) ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  'Proceed to Payment'
-                )}
-              </button>
+                      clearTimeout(resetTimeout);
+                      setErrorMessage("There was a problem processing your payment. Please try again.");
+                      toast.error("Payment processing failed");
+                      setIsProcessing(false);
+                      setIsLoading(false);
+                    });
+                }, 0);
+              }}
+              disabled={isProcessing || isLoading || !selectedBank || !selectedPriceOption || !quotationUuid}
+              className="flex-1 px-6 py-3 bg-[#1E88E5] text-white rounded-lg hover:bg-[#1976D2] dark:bg-blue-600 dark:hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-md hover:shadow-lg"
+            >
+              {(isProcessing || isLoading) ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Proceed to Payment
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </div>
-      <div className="mt-6">
-        {errorMessage && (
-          <div className="text-red-500 dark:text-red-400 mb-4">
-            {errorMessage}
-          </div>
-        )}
       </div>
     </Modal>
   );
 };
 
-export default CheckoutConfirmationModal; 
+export default CheckoutConfirmationModal;

@@ -33,4 +33,8 @@ export interface QuotationData {
   priceOptions?: PriceOption[];
   hasImage?: boolean;
   selected_option?: number;
+  // Receiver information
+  receiver_name?: string;
+  receiver_phone?: string;
+  receiver_address?: string;
 } 

@@ -267,11 +267,24 @@ interface QuotationFormModalProps {
   onClose: () => void;
 }
 
+// Type for saved receiver address
+interface SavedAddress {
+  id: string;
+  receiver_name: string;
+  receiver_phone: string;
+  receiver_address: string;
+  is_default: boolean;
+}
+
 const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [countries, setCountries] = useState<CountryData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [formData, setFormData] = useState({
     productName: "",
     productUrl: "",
@@ -281,6 +294,9 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
     destinationCity: "",
     shippingMethod: "",
     serviceType: "",
+    receiverName: "",
+    receiverPhone: "",
+    receiverAddress: "",
   });
   
   useEffect(() => {
@@ -299,6 +315,52 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
     
     setCountries(countryList);
   }, []);
+
+  // Fetch saved addresses when modal opens
+  useEffect(() => {
+    const fetchSavedAddresses = async () => {
+      if (!isOpen) return;
+      
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user?.id) return;
+
+        const { data, error } = await supabase
+          .from('shipping_receivers')
+          .select('*')
+          .eq('user_id', sessionData.session.user.id)
+          .order('is_default', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching saved addresses:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setSavedAddresses(data);
+          // Auto-select default address if available
+          const defaultAddress = data.find(addr => addr.is_default);
+          if (defaultAddress) {
+            setSelectedAddressId(defaultAddress.id);
+            setFormData(prev => ({
+              ...prev,
+              receiverName: defaultAddress.receiver_name,
+              receiverPhone: defaultAddress.receiver_phone,
+              receiverAddress: defaultAddress.receiver_address,
+            }));
+          }
+        } else {
+          // No saved addresses, show new address form
+          setShowNewAddressForm(true);
+        }
+      } catch (error) {
+        console.error('Error fetching saved addresses:', error);
+      }
+    };
+
+    fetchSavedAddresses();
+  }, [isOpen]);
   
   // Update search query when destination country changes
   useEffect(() => {
@@ -415,6 +477,18 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
       }
       if (!formData.shippingMethod) {
         alert("Please select a shipping method");
+        return;
+      }
+      if (!formData.receiverName.trim()) {
+        alert("Please enter the receiver's name");
+        return;
+      }
+      if (!formData.receiverPhone.trim()) {
+        alert("Please enter the receiver's phone number");
+        return;
+      }
+      if (!formData.receiverAddress.trim()) {
+        alert("Please enter the receiver's address");
         return;
       }
     }
@@ -534,7 +608,10 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
           quotation_id: `QT-${Date.now()}`,
           title_option1: '',
           total_price_option1: '0',
-          delivery_time_option1: 'To be determined'
+          delivery_time_option1: 'To be determined',
+          receiver_name: formData.receiverName,
+          receiver_phone: formData.receiverPhone,
+          receiver_address: formData.receiverAddress
         })
         .select();
         
@@ -546,6 +623,24 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
       // Store the generated UUID for reference (if needed in future)
       if (quotationData && quotationData.length > 0) {
         console.log('Generated quotation ID:', quotationData[0].id);
+        
+        // Save new address to shipping_receivers if requested
+        if (saveNewAddress && showNewAddressForm && formData.receiverName && formData.receiverAddress) {
+          const { error: addressError } = await supabase
+            .from('shipping_receivers')
+            .insert({
+              user_id: sessionData?.session?.user?.id,
+              receiver_name: formData.receiverName,
+              receiver_phone: formData.receiverPhone,
+              receiver_address: formData.receiverAddress,
+              is_default: savedAddresses.length === 0 // Make default if first address
+            });
+            
+          if (addressError) {
+            console.error('Error saving address:', addressError);
+            // Don't fail the whole submission, just log the error
+          }
+        }
       }
 
       // Success! Move to completion step
@@ -845,6 +940,169 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                   ))}
                 </div>
               </div>
+
+              {/* Receiver Information */}
+              <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-md font-semibold text-gray-800 dark:text-white mb-4">Receiver Information</h4>
+                
+                {/* Saved Addresses */}
+                {savedAddresses.length > 0 && !showNewAddressForm && (
+                  <div className="mb-4">
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Select from saved addresses
+                    </label>
+                    <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar">
+                      {savedAddresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          onClick={() => {
+                            setSelectedAddressId(addr.id);
+                            setFormData(prev => ({
+                              ...prev,
+                              receiverName: addr.receiver_name,
+                              receiverPhone: addr.receiver_phone,
+                              receiverAddress: addr.receiver_address,
+                            }));
+                          }}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedAddressId === addr.id
+                              ? "border-[#1E88E5] bg-blue-50 dark:bg-blue-900/30"
+                              : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-800 dark:text-white">{addr.receiver_name}</span>
+                                {addr.is_default && (
+                                  <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full dark:bg-green-900/30 dark:text-green-400">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">{addr.receiver_phone}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{addr.receiver_address}</p>
+                            </div>
+                            {selectedAddressId === addr.id && (
+                              <svg className="w-5 h-5 text-[#1E88E5] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewAddressForm(true);
+                        setSelectedAddressId(null);
+                        setFormData(prev => ({
+                          ...prev,
+                          receiverName: "",
+                          receiverPhone: "",
+                          receiverAddress: "",
+                        }));
+                      }}
+                      className="mt-3 text-sm text-[#1E88E5] hover:text-[#1565C0] font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add new address
+                    </button>
+                  </div>
+                )}
+
+                {/* New Address Form */}
+                {(showNewAddressForm || savedAddresses.length === 0) && (
+                  <div className="space-y-4">
+                    {savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewAddressForm(false);
+                          // Re-select default or first address
+                          const defaultAddr = savedAddresses.find(a => a.is_default) || savedAddresses[0];
+                          if (defaultAddr) {
+                            setSelectedAddressId(defaultAddr.id);
+                            setFormData(prev => ({
+                              ...prev,
+                              receiverName: defaultAddr.receiver_name,
+                              receiverPhone: defaultAddr.receiver_phone,
+                              receiverAddress: defaultAddr.receiver_address,
+                            }));
+                          }
+                        }}
+                        className="text-sm text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to saved addresses
+                      </button>
+                    )}
+                    
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Receiver Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="receiverName"
+                        value={formData.receiverName}
+                        onChange={handleChange}
+                        placeholder="Full name of the receiver"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Receiver Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        name="receiverPhone"
+                        value={formData.receiverPhone}
+                        onChange={handleChange}
+                        placeholder="Phone number with country code"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Receiver Address *
+                      </label>
+                      <textarea
+                        name="receiverAddress"
+                        value={formData.receiverAddress}
+                        onChange={handleChange}
+                        placeholder="Full delivery address including street, building, city, postal code"
+                        rows={3}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
+                        required
+                      />
+                    </div>
+
+                    {/* Save address checkbox */}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveNewAddress}
+                        onChange={(e) => setSaveNewAddress(e.target.checked)}
+                        className="w-4 h-4 text-[#1E88E5] border-gray-300 rounded focus:ring-[#1E88E5] dark:border-gray-600 dark:bg-gray-700"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Save this address for future orders
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
               
               <div className="flex justify-between mt-6">
                 <button
@@ -931,6 +1189,25 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-300">Service:</span>
                   <span className="font-medium text-gray-800 dark:text-white">{formData.serviceType}</span>
+                </div>
+              </div>
+
+              {/* Receiver Information Summary */}
+              <h4 className="text-sm font-medium text-gray-700 dark:text-white mt-4 mb-2">Receiver Information</h4>
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Name:</span>
+                    <span className="font-medium text-gray-800 dark:text-white">{formData.receiverName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-300">Phone:</span>
+                    <span className="font-medium text-gray-800 dark:text-white">{formData.receiverPhone}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-gray-600 dark:text-gray-300">Address:</span>
+                    <span className="font-medium text-gray-800 dark:text-white mt-1">{formData.receiverAddress}</span>
+                  </div>
                 </div>
               </div>
 

@@ -164,7 +164,10 @@ export default function QuotationPage() {
             image_option2_2,
             unit_price_option3,
             unit_weight_option3,
-            image_option3_2
+            image_option3_2,
+            receiver_name,
+            receiver_phone,
+            receiver_address
           `)
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
@@ -278,7 +281,11 @@ export default function QuotationPage() {
               destination: `${item.shipping_city || ""}, ${item.shipping_country || ""}`.trim().replace(/^,\s*/, ""),
               priceOptions: priceOptions,
               hasImage: !!item.image_url,
-              selected_option: item.selected_option
+              selected_option: item.selected_option,
+              // Receiver information
+              receiver_name: item.receiver_name || undefined,
+              receiver_phone: item.receiver_phone || undefined,
+              receiver_address: item.receiver_address || undefined
             };
           });
           
