@@ -421,7 +421,7 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
                 variant="outline"
                 onClick={onClose}
                 disabled={isLoading}
-                className="px-6"
+                className="px-6 text-gray-900 dark:text-gray-100"
               >
                 Cancel
               </Button>
@@ -494,16 +494,24 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
           title_option1: quotation.title_option1 || quotation.product.name,
           image_option1: quotation.image_option1 || quotation.product.image,
           image_option1_2: quotation.image_option1_2,
+          unit_price_option1: quotation.unit_price_option1,
+          unit_weight_option1: quotation.unit_weight_option1,
           delivery_time_option1: quotation.delivery_time_option1 || "",
           description_option1: quotation.description_option1 || "",
+          
           title_option2: quotation.title_option2 || "",
           image_option2: quotation.image_option2 || "",
           image_option2_2: quotation.image_option2_2,
+          unit_price_option2: quotation.unit_price_option2,
+          unit_weight_option2: quotation.unit_weight_option2,
           delivery_time_option2: quotation.delivery_time_option2 || "",
           description_option2: quotation.description_option2 || "",
+          
           title_option3: quotation.title_option3 || "",
           image_option3: quotation.image_option3 || "",
           image_option3_2: quotation.image_option3_2,
+          unit_price_option3: quotation.unit_price_option3,
+          unit_weight_option3: quotation.unit_weight_option3,
           delivery_time_option3: quotation.delivery_time_option3 || "",
           description_option3: quotation.description_option3 || ""
         }}

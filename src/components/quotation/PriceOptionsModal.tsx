@@ -100,6 +100,38 @@ export default function PriceOptionsModal({
         const savedData = localStorage.getItem(localStorageKey);
         if (savedData) {
           const parsedData = JSON.parse(savedData);
+
+          // Merge data: If savedData is missing fields that initialData has, use initialData
+          // This fixes the issue where stale empty localStorage overrides fresh DB data
+          if (initialData) {
+            // Option 1
+            if (!parsedData.title_option1 && initialData.title_option1) parsedData.title_option1 = initialData.title_option1;
+            if ((parsedData.unit_price_option1 === undefined || parsedData.unit_price_option1 === null) && initialData.unit_price_option1 != null) parsedData.unit_price_option1 = initialData.unit_price_option1;
+            if ((parsedData.unit_weight_option1 === undefined || parsedData.unit_weight_option1 === null) && initialData.unit_weight_option1 != null) parsedData.unit_weight_option1 = initialData.unit_weight_option1;
+            if (!parsedData.delivery_time_option1 && initialData.delivery_time_option1) parsedData.delivery_time_option1 = initialData.delivery_time_option1;
+            if (!parsedData.description_option1 && initialData.description_option1) parsedData.description_option1 = initialData.description_option1;
+            if (!parsedData.image_option1 && initialData.image_option1) parsedData.image_option1 = initialData.image_option1;
+            if (!parsedData.image_option1_2 && initialData.image_option1_2) parsedData.image_option1_2 = initialData.image_option1_2;
+
+            // Option 2
+            if (!parsedData.title_option2 && initialData.title_option2) parsedData.title_option2 = initialData.title_option2;
+            if ((parsedData.unit_price_option2 === undefined || parsedData.unit_price_option2 === null) && initialData.unit_price_option2 != null) parsedData.unit_price_option2 = initialData.unit_price_option2;
+            if ((parsedData.unit_weight_option2 === undefined || parsedData.unit_weight_option2 === null) && initialData.unit_weight_option2 != null) parsedData.unit_weight_option2 = initialData.unit_weight_option2;
+            if (!parsedData.delivery_time_option2 && initialData.delivery_time_option2) parsedData.delivery_time_option2 = initialData.delivery_time_option2;
+            if (!parsedData.description_option2 && initialData.description_option2) parsedData.description_option2 = initialData.description_option2;
+            if (!parsedData.image_option2 && initialData.image_option2) parsedData.image_option2 = initialData.image_option2;
+            if (!parsedData.image_option2_2 && initialData.image_option2_2) parsedData.image_option2_2 = initialData.image_option2_2;
+
+            // Option 3
+            if (!parsedData.title_option3 && initialData.title_option3) parsedData.title_option3 = initialData.title_option3;
+            if ((parsedData.unit_price_option3 === undefined || parsedData.unit_price_option3 === null) && initialData.unit_price_option3 != null) parsedData.unit_price_option3 = initialData.unit_price_option3;
+            if ((parsedData.unit_weight_option3 === undefined || parsedData.unit_weight_option3 === null) && initialData.unit_weight_option3 != null) parsedData.unit_weight_option3 = initialData.unit_weight_option3;
+            if (!parsedData.delivery_time_option3 && initialData.delivery_time_option3) parsedData.delivery_time_option3 = initialData.delivery_time_option3;
+            if (!parsedData.description_option3 && initialData.description_option3) parsedData.description_option3 = initialData.description_option3;
+            if (!parsedData.image_option3 && initialData.image_option3) parsedData.image_option3 = initialData.image_option3;
+            if (!parsedData.image_option3_2 && initialData.image_option3_2) parsedData.image_option3_2 = initialData.image_option3_2;
+          }
+
           setFormData(parsedData);
           
           // Set preview images and visibility options based on saved data
@@ -390,7 +422,7 @@ export default function PriceOptionsModal({
             value={formData.title_option1 || ""}
             onChange={(e) => handleInputChange(e, "title_option1")}
             required
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -404,7 +436,7 @@ export default function PriceOptionsModal({
             placeholder="e.g. 7-10 days"
             value={formData.delivery_time_option1 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option1")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -420,7 +452,7 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option1 || ""}
               onChange={(e) => handleInputChange(e, "unit_price_option1")}
-              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -435,7 +467,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option1 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option1")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
           />
         </div>
       </div>
@@ -449,7 +481,7 @@ export default function PriceOptionsModal({
             placeholder="Add details about this option..."
             value={formData.description_option1 || ""}
             onChange={(e) => handleInputChange(e, "description_option1")}
-            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -529,7 +561,7 @@ export default function PriceOptionsModal({
             placeholder="e.g. Premium"
             value={formData.title_option2 || ""}
             onChange={(e) => handleInputChange(e, "title_option2")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -543,7 +575,7 @@ export default function PriceOptionsModal({
             placeholder="e.g. 2 WEEKS"
             value={formData.delivery_time_option2 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option2")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -559,7 +591,7 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option2 || ""}
               onChange={(e) => handleInputChange(e, "unit_price_option2")}
-              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -574,7 +606,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option2 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option2")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
           />
         </div>
       </div>
@@ -588,7 +620,7 @@ export default function PriceOptionsModal({
             placeholder="Add details about this option..."
             value={formData.description_option2 || ""}
             onChange={(e) => handleInputChange(e, "description_option2")}
-            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -668,7 +700,7 @@ export default function PriceOptionsModal({
             placeholder="e.g. Deluxe"
             value={formData.title_option3 || ""}
             onChange={(e) => handleInputChange(e, "title_option3")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -682,7 +714,7 @@ export default function PriceOptionsModal({
             placeholder="e.g. 3 DAYS"
             value={formData.delivery_time_option3 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option3")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -698,7 +730,7 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option3 || ""}
               onChange={(e) => handleInputChange(e, "unit_price_option3")}
-              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -713,7 +745,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option3 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option3")}
-            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-slate-100"
           />
         </div>
       </div>
@@ -727,7 +759,7 @@ export default function PriceOptionsModal({
             placeholder="Add details about this option..."
             value={formData.description_option3 || ""}
             onChange={(e) => handleInputChange(e, "description_option3")}
-            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-slate-100"
           />
         </div>
 
@@ -925,7 +957,7 @@ return (
               variant="outline"
               type="button"
               onClick={handleClose}
-              className="w-24 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              className="w-24 bg-white dark:bg-slate-800 border-gray-300 text-gray-900 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-700"
             >
               Cancel
             </Button>
