@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
-import { Plus, X, Upload } from "lucide-react"
+import { Plus, X, Upload, Package, DollarSign, Clock, FileText, Image as ImageIcon, Trash2 } from "lucide-react"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -361,519 +361,438 @@ export default function PriceOptionsModal({
     }
   };
 
+  const removeImage = (optionNumber: number, isExtra: boolean) => {
+    const field = `image_option${optionNumber}${isExtra ? '_2' : ''}` as keyof PriceOptionsData;
+    setFormData(prev => ({
+      ...prev,
+      [field]: null
+    }));
+    
+    if (optionNumber === 1 && !isExtra) setImagePreview1(null);
+    if (optionNumber === 1 && isExtra) setImagePreview1_2(null);
+    if (optionNumber === 2 && !isExtra) setImagePreview2(null);
+    if (optionNumber === 2 && isExtra) setImagePreview2_2(null);
+    if (optionNumber === 3 && !isExtra) setImagePreview3(null);
+    if (optionNumber === 3 && isExtra) setImagePreview3_2(null);
+  };
+
   const renderOption1Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option1" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="title_option1"
-            placeholder="e.g. STANDARD"
+            placeholder="e.g. Standard"
             value={formData.title_option1 || ""}
             onChange={(e) => handleInputChange(e, "title_option1")}
             required
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option1" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option1"
-            placeholder="e.g. 1 WEEK"
+            placeholder="e.g. 7-10 days"
             value={formData.delivery_time_option1 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option1" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option1"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option1 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option1"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option1 || ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option1")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option1" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option1"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
+            placeholder="0.00"
             value={formData.unit_weight_option1 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option1" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option1"
-            placeholder="e.g. ORIGINAL"
+            placeholder="Add details about this option..."
             value={formData.description_option1 || ""}
             onChange={(e) => handleInputChange(e, "description_option1")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
-        <div className="space-y-2">
-        <Label htmlFor="image_option1" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview1 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-          <input
-              id="image_option1"
-            type="file"
-            accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 1)}
-            />
-            <label
-              htmlFor="image_option1"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
-
-          {imagePreview1 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview1) ? (
-                <Image
-                  src={imagePreview1}
-                  alt={`Preview for ${formData.title_option1 || "Option 1"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Main Image */}
+            <div className="relative aspect-square">
+              {imagePreview1 && isValidImageUrl(imagePreview1) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview1}
+                    alt="Option 1 Main"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(1, false)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 1)} />
+                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option1_2" className="text-gray-700 dark:text-white">Extra Image</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview1_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option1_2"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 1, true)}
-            />
-            <label
-              htmlFor="image_option1_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
 
-          {imagePreview1_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview1_2) ? (
-                <Image
-                  src={imagePreview1_2}
-                  alt={`Preview for extra image of ${formData.title_option1 || "Option 1"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+            {/* Extra Image */}
+            <div className="relative aspect-square">
+              {imagePreview1_2 && isValidImageUrl(imagePreview1_2) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview1_2}
+                    alt="Option 1 Extra"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(1, true)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 1, true)} />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image uploaded</span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderOption2Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option2" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title
+          </Label>
           <Input
             id="title_option2"
-            placeholder="e.g. PREMIUM"
+            placeholder="e.g. Premium"
             value={formData.title_option2 || ""}
             onChange={(e) => handleInputChange(e, "title_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option2" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option2"
             placeholder="e.g. 2 WEEKS"
             value={formData.delivery_time_option2 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option2" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option2"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option2 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option2"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option2 || ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option2")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option2" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option2"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
+            placeholder="0.00"
             value={formData.unit_weight_option2 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option2" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option2"
-            placeholder="e.g. PREMIUM"
+            placeholder="Add details about this option..."
             value={formData.description_option2 || ""}
             onChange={(e) => handleInputChange(e, "description_option2")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="image_option2" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option2"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 2)}
-            />
-            <label
-              htmlFor="image_option2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
-
-          {imagePreview2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview2) ? (
-                <Image
-                  src={imagePreview2}
-                  alt={`Preview for ${formData.title_option2 || "Option 2"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Main Image */}
+            <div className="relative aspect-square">
+              {imagePreview2 && isValidImageUrl(imagePreview2) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview2}
+                    alt="Option 2 Main"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(2, false)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 2)} />
+                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option2_2" className="text-gray-700 dark:text-white">Extra Image</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview2_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option2_2"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 2, true)}
-            />
-            <label
-              htmlFor="image_option2_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
 
-          {imagePreview2_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview2_2) ? (
-                <Image
-                  src={imagePreview2_2}
-                  alt={`Preview for extra image of ${formData.title_option2 || "Option 2"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+            {/* Extra Image */}
+            <div className="relative aspect-square">
+              {imagePreview2_2 && isValidImageUrl(imagePreview2_2) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview2_2}
+                    alt="Option 2 Extra"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(2, true)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 2, true)} />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image uploaded</span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderOption3Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option3" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title
+          </Label>
           <Input
             id="title_option3"
-            placeholder="e.g. DELUXE"
+            placeholder="e.g. Deluxe"
             value={formData.title_option3 || ""}
             onChange={(e) => handleInputChange(e, "title_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option3" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option3"
             placeholder="e.g. 3 DAYS"
             value={formData.delivery_time_option3 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option3" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option3"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option3 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option3"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option3 || ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option3")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option3" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option3"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
+            placeholder="0.00"
             value={formData.unit_weight_option3 || ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option3" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option3"
-            placeholder="e.g. DELUXE"
+            placeholder="Add details about this option..."
             value={formData.description_option3 || ""}
             onChange={(e) => handleInputChange(e, "description_option3")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="image_option3" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview3 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option3"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 3)}
-            />
-            <label
-              htmlFor="image_option3"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
-
-          {imagePreview3 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview3) ? (
-                <Image
-                  src={imagePreview3}
-                  alt={`Preview for ${formData.title_option3 || "Option 3"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">Images</Label>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Main Image */}
+            <div className="relative aspect-square">
+              {imagePreview3 && isValidImageUrl(imagePreview3) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview3}
+                    alt="Option 3 Main"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(3, false)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 3)} />
+                  <Upload className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Main</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option3_2" className="text-gray-700 dark:text-white">Extra Image</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview3_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option3_2"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 3, true)}
-            />
-            <label
-              htmlFor="image_option3_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
 
-          {imagePreview3_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview3_2) ? (
-                <Image
-                  src={imagePreview3_2}
-                  alt={`Preview for extra image of ${formData.title_option3 || "Option 3"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
+            {/* Extra Image */}
+            <div className="relative aspect-square">
+              {imagePreview3_2 && isValidImageUrl(imagePreview3_2) ? (
+                <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                  <Image
+                    src={imagePreview3_2}
+                    alt="Option 3 Extra"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(3, true)}
+                    className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 3, true)} />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Extra</span>
+                </label>
               )}
             </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image uploaded</span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
-);
+  );
 
 return (
     <Modal isOpen={isOpen} onClose={handleClose}>
@@ -894,16 +813,20 @@ return (
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-slate-900/95">
-            <form id="price-options-form" onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-slate-900/95">
+            <form id="price-options-form" onSubmit={handleSubmit} className="space-y-6">
               {/* Option 1 */}
-              <Card className="shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                  <CardTitle className="text-lg text-gray-900 dark:text-slate-100 flex items-center">
-                    Price Option 1 <span className="text-sm text-rose-500 dark:text-rose-400 ml-2">(Required)</span>
-                  </CardTitle>
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                <CardHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 text-xs font-bold">1</span>
+                      Price Option 1
+                    </CardTitle>
+                    <span className="text-[10px] font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full border border-red-100 dark:border-red-900/30 tracking-wide uppercase">Required</span>
+                  </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-4">
+                <CardContent className="p-6">
                   {renderOption1Content()}
                 </CardContent>
               </Card>
@@ -913,11 +836,11 @@ return (
                 <div className="flex justify-center py-2">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => setShowOption2(true)}
-                    className="flex items-center gap-2 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Price Option 2
                   </Button>
                 </div>
@@ -925,23 +848,28 @@ return (
 
               {/* Option 2 */}
               {showOption2 && (
-                <Card className="relative shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    onClick={() => {
-                      setShowOption2(false);
-                      setShowOption3(false);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                    <CardTitle className="text-lg text-gray-900 dark:text-slate-100">Price Option 2</CardTitle>
+                <Card className="relative shadow-sm hover:shadow-md transition-shadow duration-200 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                  <div className="absolute top-4 right-4 z-10">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={() => {
+                        setShowOption2(false);
+                        setShowOption3(false);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CardHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
+                    <CardTitle className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-bold">2</span>
+                      Price Option 2
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                  <CardContent className="p-6">
                     {renderOption2Content()}
                   </CardContent>
                 </Card>
@@ -952,11 +880,11 @@ return (
                 <div className="flex justify-center py-2">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => setShowOption3(true)}
-                    className="flex items-center gap-2 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20 transition-colors"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Price Option 3
                   </Button>
                 </div>
@@ -964,20 +892,25 @@ return (
 
               {/* Option 3 */}
               {showOption3 && (
-                <Card className="relative shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    onClick={() => setShowOption3(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                    <CardTitle className="text-lg text-gray-900 dark:text-slate-100">Price Option 3</CardTitle>
+                <Card className="relative shadow-sm hover:shadow-md transition-shadow duration-200 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                  <div className="absolute top-4 right-4 z-10">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      onClick={() => setShowOption3(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CardHeader className="px-6 py-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
+                    <CardTitle className="text-base font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs font-bold">3</span>
+                      Price Option 3
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                  <CardContent className="p-6">
                     {renderOption3Content()}
                   </CardContent>
                 </Card>

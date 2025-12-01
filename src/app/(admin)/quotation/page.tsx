@@ -154,21 +154,27 @@ export default function QuotationPage() {
           service_type?: string;
           title_option1?: string;
           image_option1?: string;
+          image_option1_2?: string;
           price_description_option1?: string;
           delivery_time_option1?: string;
           description_option1?: string;
           total_price_option2?: string;
           title_option2?: string;
           image_option2?: string;
+          image_option2_2?: string;
           price_description_option2?: string;
           delivery_time_option2?: string;
           description_option2?: string;
           title_option3?: string;
           total_price_option3?: string;
           image_option3?: string;
+          image_option3_2?: string;
           price_description_option3?: string;
           delivery_time_option3?: string;
           description_option3?: string;
+          receiver_name?: string;
+          receiver_phone?: string;
+          receiver_address?: string;
           selected_option?: number;
           profiles?: {
             email?: string;
@@ -228,21 +234,27 @@ export default function QuotationPage() {
           title_option1: item.title_option1,
           total_price_option1: item.total_price_option1 !== undefined ? String(item.total_price_option1) : undefined,
           image_option1: item.image_option1,
+          image_option1_2: item.image_option1_2,
           price_description_option1: item.price_description_option1,
           delivery_time_option1: item.delivery_time_option1,
           description_option1: item.description_option1,
           title_option2: item.title_option2,
           total_price_option2: item.total_price_option2,
           image_option2: item.image_option2,
+          image_option2_2: item.image_option2_2,
           price_description_option2: item.price_description_option2,
           delivery_time_option2: item.delivery_time_option2,
           description_option2: item.description_option2,
           title_option3: item.title_option3,
           total_price_option3: item.total_price_option3,
           image_option3: item.image_option3,
+          image_option3_2: item.image_option3_2,
           price_description_option3: item.price_description_option3,
           delivery_time_option3: item.delivery_time_option3,
           description_option3: item.description_option3,
+          receiver_name: item.receiver_name,
+          receiver_phone: item.receiver_phone,
+          receiver_address: item.receiver_address,
           selected_option: item.selected_option
         };
       }) || [];

@@ -297,6 +297,16 @@ layer(base);
     display: none;
     -webkit-appearance: none;
   }
+
+  /* Remove spin buttons from number input */
+  .input-no-spin::-webkit-inner-spin-button,
+  .input-no-spin::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .input-no-spin {
+    -moz-appearance: textfield; /* Firefox */
+  }
 }
 
 /* third-party libraries CSS */

@@ -64,4 +64,10 @@ export interface QuotationData {
   description_option3?: string;
   selected_option?: number;
   product_url?: string;
+  image_option1_2?: string;
+  image_option2_2?: string;
+  image_option3_2?: string;
+  receiver_name?: string;
+  receiver_phone?: string;
+  receiver_address?: string;
 } 
