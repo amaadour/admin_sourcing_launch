@@ -38,31 +38,17 @@ const Avatar: React.FC<AvatarProps> = ({
   size = "medium",
   status = "none",
 }) => {
-  // Helper to check if src is safe to render
-  const isSafeSrc = (url: string) => {
-    if (!url) return false;
-    // Check for known invalid placeholder
-    if (url.includes("YOUR_PROJECT_REF")) return false;
-    return true;
-  };
-
   return (
     <div className={`relative  rounded-full ${sizeClasses[size]}`}>
       {/* Avatar Image */}
-      {isSafeSrc(src) ? (
-        <Image
-          width="0"
-          height="0"
-          sizes="100vw"
-          src={src}
-          alt={alt}
-          className="object-cover w-full rounded-full"
-        />
-      ) : (
-        <div className="w-full h-full rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-          {alt.charAt(0).toUpperCase()}
-        </div>
-      )}
+      <Image
+        width="0"
+        height="0"
+        sizes="100vw"
+        src={src}
+        alt={alt}
+        className="object-cover w-full rounded-full"
+      />
 
       {/* Status Indicator */}
       {status !== "none" && (

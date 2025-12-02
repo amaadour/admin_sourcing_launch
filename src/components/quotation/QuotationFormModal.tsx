@@ -13,6 +13,10 @@ import { useDropzone } from "react-dropzone";
 import { countries as countryCodes } from 'country-flag-icons';
 import { supabase } from "@/lib/supabase";
 
+// Helper to validate Supabase image URLs
+const isValidImageUrl = (url: string | null | undefined) =>
+  !!url && url.startsWith('https://cfhochnjniddaztgwrbk.supabase.co/');
+
 // Shipping methods based on destination region
 const getShippingMethods = (region: string) => {
   const methods = ["Sea Freight", "Air Freight"];
@@ -78,15 +82,11 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
     const countryList: CountryData[] = countryCodes.map((code) => {
       let countryName: string;
       try {
-        // Try to get the country name using Intl.DisplayNames
-        const name = displayNames.of(code);
-        // If Intl.DisplayNames returns null or undefined, use the code as fallback
-        countryName = name || code;
+        countryName = displayNames.of(code) || code;
       } catch (error) {
-        // If there's an error (invalid region code), use the code as fallback
+        // Handle invalid country codes gracefully
         countryName = code;
       }
-      
       return {
         code: code.toLowerCase(),
         name: countryName,
@@ -502,9 +502,9 @@ const QuotationFormModal: React.FC<QuotationFormModalProps> = ({ isOpen, onClose
                     <div className="flex flex-wrap gap-3 mt-2">
                       {formData.productImages.map((file, index) => (
                         <div key={index} className="relative w-24 h-24 overflow-hidden rounded-md group">
-                          {file ? (
+                          {isValidImageUrl(URL.createObjectURL(file)) ? (
                             <Image
-                              src={URL.createObjectURL(file)}
+                              src={URL.createObjectURL(file)!}
                               alt={`Product image ${index + 1}`}
                               fill
                               className="object-cover"

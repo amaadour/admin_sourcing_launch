@@ -154,36 +154,21 @@ export default function QuotationPage() {
           service_type?: string;
           title_option1?: string;
           image_option1?: string;
-          image_option1_2?: string;
-          extra_images_option1?: string[];
           price_description_option1?: string;
-          unit_price_option1?: number;
-          unit_weight_option1?: number;
           delivery_time_option1?: string;
           description_option1?: string;
           total_price_option2?: string;
           title_option2?: string;
           image_option2?: string;
-          image_option2_2?: string;
-          extra_images_option2?: string[];
           price_description_option2?: string;
-          unit_price_option2?: number;
-          unit_weight_option2?: number;
           delivery_time_option2?: string;
           description_option2?: string;
           title_option3?: string;
           total_price_option3?: string;
           image_option3?: string;
-          image_option3_2?: string;
-          extra_images_option3?: string[];
           price_description_option3?: string;
-          unit_price_option3?: number;
-          unit_weight_option3?: number;
           delivery_time_option3?: string;
           description_option3?: string;
-          receiver_name?: string;
-          receiver_phone?: string;
-          receiver_address?: string;
           selected_option?: number;
           profiles?: {
             email?: string;
@@ -243,36 +228,21 @@ export default function QuotationPage() {
           title_option1: item.title_option1,
           total_price_option1: item.total_price_option1 !== undefined ? String(item.total_price_option1) : undefined,
           image_option1: item.image_option1,
-          image_option1_2: item.image_option1_2,
-          extra_images_option1: item.extra_images_option1,
           price_description_option1: item.price_description_option1,
-          unit_price_option1: item.unit_price_option1 ? Number(item.unit_price_option1) : undefined,
-          unit_weight_option1: item.unit_weight_option1 ? Number(item.unit_weight_option1) : undefined,
           delivery_time_option1: item.delivery_time_option1,
           description_option1: item.description_option1,
           title_option2: item.title_option2,
           total_price_option2: item.total_price_option2,
           image_option2: item.image_option2,
-          image_option2_2: item.image_option2_2,
-          extra_images_option2: item.extra_images_option2,
           price_description_option2: item.price_description_option2,
-          unit_price_option2: item.unit_price_option2,
-          unit_weight_option2: item.unit_weight_option2,
           delivery_time_option2: item.delivery_time_option2,
           description_option2: item.description_option2,
           title_option3: item.title_option3,
           total_price_option3: item.total_price_option3,
           image_option3: item.image_option3,
-          image_option3_2: item.image_option3_2,
-          extra_images_option3: item.extra_images_option3,
           price_description_option3: item.price_description_option3,
-          unit_price_option3: item.unit_price_option3,
-          unit_weight_option3: item.unit_weight_option3,
           delivery_time_option3: item.delivery_time_option3,
           description_option3: item.description_option3,
-          receiver_name: item.receiver_name,
-          receiver_phone: item.receiver_phone,
-          receiver_address: item.receiver_address,
           selected_option: item.selected_option
         };
       }) || [];
@@ -826,32 +796,9 @@ export default function QuotationPage() {
           quotationId={currentQuotation.id}
           initialData={{
             title_option1: currentQuotation.product.name,
-            image_option1: currentQuotation.product.image || null,
-            unit_price_option1: currentQuotation.unit_price_option1,
-            unit_weight_option1: currentQuotation.unit_weight_option1,
-            delivery_time_option1: currentQuotation.delivery_time_option1,
-            description_option1: currentQuotation.description_option1,
-            // Option 2
-            title_option2: currentQuotation.title_option2,
-            image_option2: currentQuotation.image_option2 || null,
-            unit_price_option2: currentQuotation.unit_price_option2,
-            unit_weight_option2: currentQuotation.unit_weight_option2,
-            delivery_time_option2: currentQuotation.delivery_time_option2,
-            description_option2: currentQuotation.description_option2,
-            // Option 3
-            title_option3: currentQuotation.title_option3,
-            image_option3: currentQuotation.image_option3 || null,
-            unit_price_option3: currentQuotation.unit_price_option3,
-            unit_weight_option3: currentQuotation.unit_weight_option3,
-            delivery_time_option3: currentQuotation.delivery_time_option3,
-            description_option3: currentQuotation.description_option3,
-            // Extra images
-            image_option1_2: currentQuotation.image_option1_2 || null,
-            image_option2_2: currentQuotation.image_option2_2 || null,
-            image_option3_2: currentQuotation.image_option3_2 || null,
-            extra_images_option1: currentQuotation.extra_images_option1,
-            extra_images_option2: currentQuotation.extra_images_option2,
-            extra_images_option3: currentQuotation.extra_images_option3,
+            image_option1: currentQuotation.product.image,
+            image_option2: null,
+            image_option3: null
           }}
           onUpdate={handleQuotationUpdate}
         />
