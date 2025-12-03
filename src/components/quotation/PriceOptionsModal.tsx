@@ -218,33 +218,40 @@ export default function PriceOptionsModal({
       return;
     }
 
-    // Check file size - 2MB for images, 50MB for videos (only for extra fields)
-    const maxSize = isExtra ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for extra (videos), 2MB for main images
-    if (file.size > maxSize) {
-      const maxSizeMB = isExtra ? 50 : 2;
+    // Check limit (max 10 files - images or videos)
+    const currentImages = getAllImages(optionNumber);
+    if (currentImages.length >= 10) {
       customToast({
         variant: "destructive",
         title: "Error",
-        description: `File size must be less than ${maxSizeMB}MB`
+        description: "You can upload a maximum of 10 files per option"
       });
       return;
     }
 
-    // Check file type - allow images and videos for extra fields
+    // Check file type
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-    const allowedTypes = isExtra 
-      ? [...allowedImageTypes, ...allowedVideoTypes]
-      : allowedImageTypes;
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
     
     if (!allowedTypes.includes(file.type)) {
-      const fileTypeMessage = isExtra 
-        ? "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
-        : "File must be an image (JPG, PNG, GIF, or SVG)";
       customToast({
         variant: "destructive",
         title: "Error",
-        description: fileTypeMessage
+        description: "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
+      });
+      return;
+    }
+
+    // Check file size - 2MB for images, 50MB for videos
+    const isVideo = allowedVideoTypes.includes(file.type);
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for videos, 2MB for images
+    if (file.size > maxSize) {
+      const maxSizeMB = isVideo ? 50 : 2;
+      customToast({
+        variant: "destructive",
+        title: "Error",
+        description: `File size must be less than ${maxSizeMB}MB`
       });
       return;
     }
@@ -302,13 +309,13 @@ export default function PriceOptionsModal({
         description: file.type.startsWith('video/') ? "Video uploaded successfully" : "Image uploaded successfully"
       });
     } catch (error) {
-      console.error('Image upload error:', error);
+      console.error('File upload error:', error);
       customToast({
         variant: "destructive",
         title: "Error",
         description: error instanceof Error 
-          ? `Failed to upload image: ${error.message}` 
-          : "Failed to upload image. Please try again."
+          ? `Failed to upload file: ${error.message}` 
+          : "Failed to upload file. Please try again."
       });
     } finally {
       setIsLoading(false);
@@ -446,54 +453,60 @@ export default function PriceOptionsModal({
         </div>
       </div>
 
-        <div className="space-y-2">
-        <Label htmlFor="image_option1" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview1 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-          <input
-              id="image_option1"
-            type="file"
-            accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 1)}
-            />
-            <label
-              htmlFor="image_option1"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images/Videos ({getAllImages(1).length}/10)
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            {getAllImages(1).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    {isVideoUrl(url) ? (
+                      <video
+                        src={url}
+                        controls
+                        className="w-full h-full object-cover"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <Image
+                        src={url}
+                        alt={`Option 1 Image ${idx + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(1, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-          {imagePreview1 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview1) ? (
-                <Image
-                  src={imagePreview1}
-                  alt={`Preview for ${formData.title_option1 || "Option 1"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
+            {getAllImages(1).length < 10 && (
+              <div className="relative aspect-square">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*,video/*" 
+                    onChange={(e) => handleImageUpload(e, 1)} 
+                    disabled={isLoading}
+                  />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -627,54 +640,60 @@ export default function PriceOptionsModal({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="image_option2" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option2"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 2)}
-            />
-            <label
-              htmlFor="image_option2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images/Videos ({getAllImages(2).length}/10)
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            {getAllImages(2).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    {isVideoUrl(url) ? (
+                      <video
+                        src={url}
+                        controls
+                        className="w-full h-full object-cover"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <Image
+                        src={url}
+                        alt={`Option 2 Image ${idx + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(2, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-          {imagePreview2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview2) ? (
-                <Image
-                  src={imagePreview2}
-                  alt={`Preview for ${formData.title_option2 || "Option 2"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
+            {getAllImages(2).length < 10 && (
+              <div className="relative aspect-square">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*,video/*" 
+                    onChange={(e) => handleImageUpload(e, 2)} 
+                    disabled={isLoading}
+                  />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -808,54 +827,60 @@ export default function PriceOptionsModal({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="image_option3" className="text-gray-700 dark:text-white">Image</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview3 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option3"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 3)}
-            />
-            <label
-              htmlFor="image_option3"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload image</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG or GIF (max. 2MB)</span>
-            </label>
-          </div>
+        {/* Images - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            Images/Videos ({getAllImages(3).length}/10)
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            {getAllImages(3).map((url, idx) => (
+              <div key={idx} className="relative aspect-square">
+                {isValidImageUrl(url) ? (
+                  <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    {isVideoUrl(url) ? (
+                      <video
+                        src={url}
+                        controls
+                        className="w-full h-full object-cover"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    ) : (
+                      <Image
+                        src={url}
+                        alt={`Option 3 Image ${idx + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(3, idx)}
+                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
 
-          {imagePreview3 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview3) ? (
-                <Image
-                  src={imagePreview3}
-                  alt={`Preview for ${formData.title_option3 || "Option 3"}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid image
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No image uploaded</span>
-            </div>
-          )}
+            {getAllImages(3).length < 10 && (
+              <div className="relative aspect-square">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*,video/*" 
+                    onChange={(e) => handleImageUpload(e, 3)} 
+                    disabled={isLoading}
+                  />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
