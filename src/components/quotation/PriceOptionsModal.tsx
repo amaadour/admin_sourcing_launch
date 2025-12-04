@@ -64,13 +64,11 @@ export default function PriceOptionsModal({
   onUpdate
 }: PriceOptionsModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [quantity, setQuantity] = useState<number>(1)
   const [showOption2, setShowOption2] = useState(!!initialData?.title_option2)
   const [showOption3, setShowOption3] = useState(!!initialData?.title_option3)
-  const [imagePreview1, setImagePreview1] = useState<string | null>(initialData?.image_option1 ?? null)
   const [imagePreview1_2, setImagePreview1_2] = useState<string | null>(initialData?.image_option1_2 ?? null)
-  const [imagePreview2, setImagePreview2] = useState<string | null>(initialData?.image_option2 ?? null)
   const [imagePreview2_2, setImagePreview2_2] = useState<string | null>(initialData?.image_option2_2 ?? null)
-  const [imagePreview3, setImagePreview3] = useState<string | null>(initialData?.image_option3 ?? null)
   const [imagePreview3_2, setImagePreview3_2] = useState<string | null>(initialData?.image_option3_2 ?? null)
 
   const [formData, setFormData] = useState<PriceOptionsData>({
@@ -100,6 +98,54 @@ export default function PriceOptionsModal({
   // Create a local storage key unique to this quotation
   const localStorageKey = `priceOptions_quotation_${quotationId}`;
 
+  // Fetch quantity from database when modal opens
+  useEffect(() => {
+    if (isOpen && quotationId) {
+      const fetchQuantity = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('quotations')
+            .select('quantity, unit_price_option1, unit_price_option2, unit_price_option3')
+            .eq('id', quotationId)
+            .single();
+
+          if (error) {
+            console.error('Error fetching quotation quantity:', error);
+            return;
+          }
+
+          if (data) {
+            const quotationData = data as {
+              quantity?: number | null;
+              unit_price_option1?: number | null;
+              unit_price_option2?: number | null;
+              unit_price_option3?: number | null;
+            };
+            setQuantity(quotationData.quantity || 1);
+            // Update formData with unit prices from database if they exist and formData doesn't have them
+            setFormData(prev => {
+              const updates: Partial<PriceOptionsData> = {};
+              if (quotationData.unit_price_option1 != null && prev.unit_price_option1 == null) {
+                updates.unit_price_option1 = Number(quotationData.unit_price_option1);
+              }
+              if (quotationData.unit_price_option2 != null && prev.unit_price_option2 == null) {
+                updates.unit_price_option2 = Number(quotationData.unit_price_option2);
+              }
+              if (quotationData.unit_price_option3 != null && prev.unit_price_option3 == null) {
+                updates.unit_price_option3 = Number(quotationData.unit_price_option3);
+              }
+              return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching quotation data:', error);
+        }
+      };
+
+      fetchQuantity();
+    }
+  }, [isOpen, quotationId]);
+
   // Load data from localStorage when component mounts
   useEffect(() => {
     if (isOpen) {
@@ -110,11 +156,8 @@ export default function PriceOptionsModal({
           setFormData(parsedData);
           
           // Set preview images and visibility options based on saved data
-          if (parsedData.image_option1) setImagePreview1(parsedData.image_option1);
           if (parsedData.image_option1_2) setImagePreview1_2(parsedData.image_option1_2);
-          if (parsedData.image_option2) setImagePreview2(parsedData.image_option2);
           if (parsedData.image_option2_2) setImagePreview2_2(parsedData.image_option2_2);
-          if (parsedData.image_option3) setImagePreview3(parsedData.image_option3);
           if (parsedData.image_option3_2) setImagePreview3_2(parsedData.image_option3_2);
           
           setShowOption2(!!parsedData.title_option2 || !!parsedData.image_option2 || 
@@ -127,11 +170,8 @@ export default function PriceOptionsModal({
         } else if (initialData) {
           setFormData(initialData);
           
-          if (initialData.image_option1) setImagePreview1(initialData.image_option1);
           if (initialData.image_option1_2) setImagePreview1_2(initialData.image_option1_2);
-          if (initialData.image_option2) setImagePreview2(initialData.image_option2);
           if (initialData.image_option2_2) setImagePreview2_2(initialData.image_option2_2);
-          if (initialData.image_option3) setImagePreview3(initialData.image_option3);
           if (initialData.image_option3_2) setImagePreview3_2(initialData.image_option3_2);
           
           const hasOption2Data = initialData.title_option2 || initialData.image_option2 || 
@@ -218,36 +258,43 @@ export default function PriceOptionsModal({
       return;
     }
 
-    // Check limit (max 10 files - images or videos)
-    const currentImages = getAllImages(optionNumber);
-    if (currentImages.length >= 10) {
-      customToast({
-        variant: "destructive",
-        title: "Error",
-        description: "You can upload a maximum of 10 files per option"
-      });
-      return;
+    // Check limit (max 10 files - images or videos) - only for main image fields
+    if (!isExtra) {
+      const currentImages = getAllImages(optionNumber);
+      if (currentImages.length >= 10) {
+        customToast({
+          variant: "destructive",
+          title: "Error",
+          description: "You can upload a maximum of 10 files per option"
+        });
+        return;
+      }
     }
 
-    // Check file type
+    // Check file type - allow images and videos for extra fields, only images for main fields
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+    const allowedTypes = isExtra 
+      ? [...allowedImageTypes, ...allowedVideoTypes]
+      : allowedImageTypes;
     
     if (!allowedTypes.includes(file.type)) {
+      const fileTypeMessage = isExtra 
+        ? "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
+        : "File must be an image (JPG, PNG, GIF, or SVG)";
       customToast({
         variant: "destructive",
         title: "Error",
-        description: "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
+        description: fileTypeMessage
       });
       return;
     }
 
-    // Check file size - 2MB for images, 50MB for videos
+    // Check file size - 2MB for images, 50MB for videos (only for extra fields)
     const isVideo = allowedVideoTypes.includes(file.type);
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for videos, 2MB for images
+    const maxSize = isExtra && isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for extra videos, 2MB for images
     if (file.size > maxSize) {
-      const maxSizeMB = isVideo ? 50 : 2;
+      const maxSizeMB = isExtra && isVideo ? 50 : 2;
       customToast({
         variant: "destructive",
         title: "Error",
@@ -295,12 +342,9 @@ export default function PriceOptionsModal({
         [field]: urlWithCacheBust
       }));
 
-      // Update image preview with the new URL
-      if (optionNumber === 1 && !isExtra) setImagePreview1(urlWithCacheBust);
+      // Update image preview with the new URL (only for extra images)
       if (optionNumber === 1 && isExtra) setImagePreview1_2(urlWithCacheBust);
-      if (optionNumber === 2 && !isExtra) setImagePreview2(urlWithCacheBust);
       if (optionNumber === 2 && isExtra) setImagePreview2_2(urlWithCacheBust);
-      if (optionNumber === 3 && !isExtra) setImagePreview3(urlWithCacheBust);
       if (optionNumber === 3 && isExtra) setImagePreview3_2(urlWithCacheBust);
 
       customToast({
@@ -384,74 +428,127 @@ export default function PriceOptionsModal({
     }
   };
 
+  // Calculate total price = unit_price * quantity
+  const calculateTotalPrice = (unitPrice: number | null | undefined): number => {
+    if (!unitPrice || !quantity) return 0;
+    return unitPrice * quantity;
+  };
+
+  // Helper to get all images for an option as a flat array
+  const getAllImages = (optionNum: number): string[] => {
+    const list: string[] = [];
+    const img1 = formData[`image_option${optionNum}` as keyof PriceOptionsData] as string | null;
+    const img2 = formData[`image_option${optionNum}_2` as keyof PriceOptionsData] as string | null;
+    const extrasField = formData[`extra_images_option${optionNum}` as keyof PriceOptionsData];
+    const extras = Array.isArray(extrasField) ? extrasField : [];
+
+    if (img1) list.push(img1);
+    if (img2) list.push(img2);
+    if (extras && Array.isArray(extras)) list.push(...extras);
+    return list;
+  };
+
+  // Helper to distribute images back to columns
+  const updateOptionImages = (optionNum: number, images: string[]) => {
+    const field1 = `image_option${optionNum}` as keyof PriceOptionsData;
+    const field2 = `image_option${optionNum}_2` as keyof PriceOptionsData;
+    const fieldExtra = `extra_images_option${optionNum}` as keyof PriceOptionsData;
+
+    setFormData(prev => ({
+      ...prev,
+      [field1]: images[0] || null,
+      [field2]: images[1] || null,
+      [fieldExtra]: images.slice(2)
+    }));
+  };
+
+  // Helper to remove an image by index
+  const removeImage = (optionNum: number, index: number) => {
+    const currentImages = getAllImages(optionNum);
+    const newImages = currentImages.filter((_, idx) => idx !== index);
+    updateOptionImages(optionNum, newImages);
+  };
   const renderOption1Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option1" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="title_option1"
-            placeholder="e.g. STANDARD"
+            placeholder="e.g. Standard"
             value={formData.title_option1 || ""}
             onChange={(e) => handleInputChange(e, "title_option1")}
             required
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option1" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option1"
-            placeholder="e.g. 1 WEEK"
+            placeholder="e.g. 7-10 days"
             value={formData.delivery_time_option1 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option1" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option1"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option1 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option1"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option1 != null ? formData.unit_price_option1 : ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option1")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
+          {formData.unit_price_option1 != null && quantity > 0 && (
+            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
+              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option1).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option1.toFixed(2)})
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option1" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option1"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
-            value={formData.unit_weight_option1 || ""}
+            placeholder="0.00"
+            value={formData.unit_weight_option1 != null ? formData.unit_weight_option1 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option1")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option1" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option1"
-            placeholder="e.g. ORIGINAL"
+            placeholder="Add details about this option..."
             value={formData.description_option1 || ""}
             onChange={(e) => handleInputChange(e, "description_option1")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
@@ -459,7 +556,7 @@ export default function PriceOptionsModal({
             Images/Videos ({getAllImages(1).length}/10)
           </Label>
           <div className="grid grid-cols-2 gap-3">
-            {getAllImages(1).map((url, idx) => (
+            {getAllImages(1).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
                 {isValidImageUrl(url) ? (
                   <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
@@ -502,143 +599,96 @@ export default function PriceOptionsModal({
                     disabled={isLoading}
                   />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
             )}
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option1_2" className="text-gray-700 dark:text-white">Extra Image/Video</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview1_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option1_2"
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 1, true)}
-            />
-            <label
-              htmlFor="image_option1_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image or video</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG, GIF, MP4, WebM, MOV (max. 50MB)</span>
-            </label>
-          </div>
-
-          {imagePreview1_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview1_2) ? (
-                isVideoUrl(imagePreview1_2) ? (
-                  <video
-                    src={imagePreview1_2}
-                    controls
-                    className="w-full h-full object-cover"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <Image
-                    src={imagePreview1_2}
-                    alt={`Preview for extra image of ${formData.title_option1 || "Option 1"}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    style={{ objectFit: 'cover' }}
-                    priority
-                  />
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid file
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image or video uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 
   const renderOption2Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option2" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title
+          </Label>
           <Input
             id="title_option2"
-            placeholder="e.g. PREMIUM"
+            placeholder="e.g. Premium"
             value={formData.title_option2 || ""}
             onChange={(e) => handleInputChange(e, "title_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option2" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option2"
             placeholder="e.g. 2 WEEKS"
             value={formData.delivery_time_option2 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option2" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option2"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option2 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option2"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option2 != null ? formData.unit_price_option2 : ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option2")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
+          {formData.unit_price_option2 != null && quantity > 0 && (
+            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
+              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option2).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option2.toFixed(2)})
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option2" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option2"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
-            value={formData.unit_weight_option2 || ""}
+            placeholder="0.00"
+            value={formData.unit_weight_option2 != null ? formData.unit_weight_option2 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option2")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option2" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option2"
-            placeholder="e.g. PREMIUM"
+            placeholder="Add details about this option..."
             value={formData.description_option2 || ""}
             onChange={(e) => handleInputChange(e, "description_option2")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
@@ -646,7 +696,7 @@ export default function PriceOptionsModal({
             Images/Videos ({getAllImages(2).length}/10)
           </Label>
           <div className="grid grid-cols-2 gap-3">
-            {getAllImages(2).map((url, idx) => (
+            {getAllImages(2).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
                 {isValidImageUrl(url) ? (
                   <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
@@ -689,143 +739,96 @@ export default function PriceOptionsModal({
                     disabled={isLoading}
                   />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
             )}
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option2_2" className="text-gray-700 dark:text-white">Extra Image/Video</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview2_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option2_2"
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 2, true)}
-            />
-            <label
-              htmlFor="image_option2_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image or video</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG, GIF, MP4, WebM, MOV (max. 50MB)</span>
-            </label>
-          </div>
-
-          {imagePreview2_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview2_2) ? (
-                isVideoUrl(imagePreview2_2) ? (
-                  <video
-                    src={imagePreview2_2}
-                    controls
-                    className="w-full h-full object-cover"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <Image
-                    src={imagePreview2_2}
-                    alt={`Preview for extra image of ${formData.title_option2 || "Option 2"}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    style={{ objectFit: 'cover' }}
-                    priority
-                  />
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid file
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image or video uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 
   const renderOption3Content = () => (
-    <div className="grid gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title_option3" className="text-gray-700 dark:text-white">Title</Label>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        {/* Title - Full Width on mobile, 4 columns on desktop */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="title_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Title
+          </Label>
           <Input
             id="title_option3"
-            placeholder="e.g. DELUXE"
+            placeholder="e.g. Deluxe"
             value={formData.title_option3 || ""}
             onChange={(e) => handleInputChange(e, "title_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="delivery_time_option3" className="text-gray-700 dark:text-white">Delivery Time</Label>
+        {/* Delivery Time - 4 columns */}
+        <div className="md:col-span-4 space-y-1.5">
+          <Label htmlFor="delivery_time_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Delivery Time
+          </Label>
           <Input
             id="delivery_time_option3"
             placeholder="e.g. 3 DAYS"
             value={formData.delivery_time_option3 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="unit_price_option3" className="text-gray-700 dark:text-white">Unit Price</Label>
-          <Input
-            id="unit_price_option3"
-            type="number"
-            step="0.01"
-            placeholder="e.g. 100"
-            value={formData.unit_price_option3 || ""}
-            onChange={(e) => handleInputChange(e, "unit_price_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
-          />
+        {/* Price - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_price_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
+            <Input
+              id="unit_price_option3"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.unit_price_option3 != null ? formData.unit_price_option3 : ""}
+              onChange={(e) => handleInputChange(e, "unit_price_option3")}
+              className="pl-7 bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
+            />
+          </div>
+          {formData.unit_price_option3 != null && quantity > 0 && (
+            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
+              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option3).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option3.toFixed(2)})
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="unit_weight_option3" className="text-gray-700 dark:text-white">Unit Weight (grams)</Label>
+        
+        {/* Weight - 2 columns */}
+        <div className="md:col-span-2 space-y-1.5">
+          <Label htmlFor="unit_weight_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
           <Input
             id="unit_weight_option3"
             type="number"
             step="0.01"
-            placeholder="e.g. 500"
-            value={formData.unit_weight_option3 || ""}
+            placeholder="0.00"
+            value={formData.unit_weight_option3 != null ? formData.unit_weight_option3 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option3")}
-            className="bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 border-gray-200 dark:border-slate-700"
+            className="bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin"
           />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="description_option3" className="text-gray-700 dark:text-white">Description</Label>
-        <div className="w-full p-2 h-40 border rounded-md overflow-y-auto bg-white dark:bg-slate-800 dark:border-slate-700 border-gray-200">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Description - 8 columns */}
+        <div className="md:col-span-8 space-y-1.5">
+          <Label htmlFor="description_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
           <Textarea
             id="description_option3"
-            placeholder="e.g. DELUXE"
+            placeholder="Add details about this option..."
             value={formData.description_option3 || ""}
             onChange={(e) => handleInputChange(e, "description_option3")}
-            className="h-full w-full bg-transparent border-0 focus:ring-0 resize-none text-gray-900 dark:text-slate-100"
+            className="min-h-[120px] bg-transparent border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
         </div>
-      </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
@@ -833,7 +836,7 @@ export default function PriceOptionsModal({
             Images/Videos ({getAllImages(3).length}/10)
           </Label>
           <div className="grid grid-cols-2 gap-3">
-            {getAllImages(3).map((url, idx) => (
+            {getAllImages(3).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
                 {isValidImageUrl(url) ? (
                   <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
@@ -876,75 +879,15 @@ export default function PriceOptionsModal({
                     disabled={isLoading}
                   />
                   <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add Image/Video</span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
             )}
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="image_option3_2" className="text-gray-700 dark:text-white">Extra Image/Video</Label>
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer flex flex-col items-center justify-center gap-1 bg-gray-50 dark:bg-slate-800",
-              imagePreview3_2 ? "border-blue-400 dark:border-blue-500" : "border-gray-300 dark:border-slate-600",
-            )}
-          >
-            <input
-              id="image_option3_2"
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={(e) => handleImageUpload(e, 3, true)}
-            />
-            <label
-              htmlFor="image_option3_2"
-              className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Upload className="h-8 w-8 text-gray-500 dark:text-slate-400 mb-2" />
-              <span className="text-sm text-gray-600 dark:text-slate-300">Click to upload extra image or video</span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 mt-1">SVG, PNG, JPG, GIF, MP4, WebM, MOV (max. 50MB)</span>
-            </label>
-          </div>
-
-          {imagePreview3_2 ? (
-            <div className="relative w-full h-48 rounded-md overflow-hidden border border-gray-200 dark:border-slate-700">
-              {isValidImageUrl(imagePreview3_2) ? (
-                isVideoUrl(imagePreview3_2) ? (
-                  <video
-                    src={imagePreview3_2}
-                    controls
-                    className="w-full h-full object-cover"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <Image
-                    src={imagePreview3_2}
-                    alt={`Preview for extra image of ${formData.title_option3 || "Option 3"}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    style={{ objectFit: 'cover' }}
-                    priority
-                  />
-                )
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
-                  No valid file
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full h-48 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center border border-gray-200 dark:border-slate-700">
-              <span className="text-sm text-gray-500 dark:text-slate-400">No extra image or video uploaded</span>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
-);
+  );
 
 return (
     <Modal isOpen={isOpen} onClose={handleClose}>
