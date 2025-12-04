@@ -170,6 +170,7 @@ export default function QuotationPage() {
           delivery_time_option3?: string;
           description_option3?: string;
           selected_option?: number;
+          product_url?: string;
           receiver_name?: string;
           receiver_phone?: string;
           receiver_address?: string;
