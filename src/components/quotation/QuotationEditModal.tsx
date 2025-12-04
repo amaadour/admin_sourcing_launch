@@ -36,6 +36,9 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
     Quotation_fees: quotation.Quotation_fees?.toString() || '',
     service_type: quotation.service_type || '',
     product_url: quotation.product_url || '',
+    receiver_name: quotation.receiver_name || '',
+    receiver_phone: quotation.receiver_phone || '',
+    receiver_address: quotation.receiver_address || '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -92,6 +95,9 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
         Quotation_fees: formData.Quotation_fees === '' ? null : parseFloat(formData.Quotation_fees),
         service_type: formData.service_type,
         product_url: formData.product_url,
+        receiver_name: formData.receiver_name || null,
+        receiver_phone: formData.receiver_phone || null,
+        receiver_address: formData.receiver_address || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -148,7 +154,7 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-4">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Quotation</h2>
@@ -284,6 +290,52 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
                         onChange={handleChange}
                         className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
                         required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receiver Information Section */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Receiver Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Receiver Name
+                      </label>
+                      <input
+                        type="text"
+                        name="receiver_name"
+                        value={formData.receiver_name}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
+                        placeholder="Enter receiver name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Receiver Phone
+                      </label>
+                      <input
+                        type="text"
+                        name="receiver_phone"
+                        value={formData.receiver_phone}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
+                        placeholder="Enter receiver phone"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Receiver Address
+                      </label>
+                      <input
+                        type="text"
+                        name="receiver_address"
+                        value={formData.receiver_address}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
+                        placeholder="Enter receiver address"
                       />
                     </div>
                   </div>

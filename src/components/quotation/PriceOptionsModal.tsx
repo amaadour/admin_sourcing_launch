@@ -261,30 +261,25 @@ export default function PriceOptionsModal({
       }
     }
 
-    // Check file type - allow images and videos for extra fields, only images for main fields
+    // Check file type - allow images and videos for all fields
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-    const allowedTypes = isExtra 
-      ? [...allowedImageTypes, ...allowedVideoTypes]
-      : allowedImageTypes;
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
     
     if (!allowedTypes.includes(file.type)) {
-      const fileTypeMessage = isExtra 
-        ? "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
-        : "File must be an image (JPG, PNG, GIF, or SVG)";
       customToast({
         variant: "destructive",
         title: "Error",
-        description: fileTypeMessage
+        description: "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
       });
       return;
     }
 
-    // Check file size - 2MB for images, 50MB for videos (only for extra fields)
+    // Check file size - 2MB for images, 50MB for videos
     const isVideo = allowedVideoTypes.includes(file.type);
-    const maxSize = isExtra && isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for extra videos, 2MB for images
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for videos, 2MB for images
     if (file.size > maxSize) {
-      const maxSizeMB = isExtra && isVideo ? 50 : 2;
+      const maxSizeMB = isVideo ? 50 : 2;
       customToast({
         variant: "destructive",
         title: "Error",
@@ -325,14 +320,24 @@ export default function PriceOptionsModal({
 
       const urlWithCacheBust = `${publicUrl}?t=${timestamp}`;
 
-      // Update form data with the new image URL
-      const field = `image_option${optionNumber}${isExtra ? '_2' : ''}` as keyof PriceOptionsData;
-      setFormData(prev => ({
-        ...prev,
-        [field]: urlWithCacheBust
-      }));
-
-      // Image URL is stored in formData, no need for separate preview state
+      // Add the new image/video to the existing images instead of replacing
+      if (isExtra) {
+        // For extra images, add to the extra_images array
+        const fieldExtra = `extra_images_option${optionNumber}` as keyof PriceOptionsData;
+        setFormData(prev => {
+          const currentExtrasField = prev[fieldExtra];
+          const currentExtras = Array.isArray(currentExtrasField) ? currentExtrasField : [];
+          return {
+            ...prev,
+            [fieldExtra]: [...currentExtras, urlWithCacheBust]
+          };
+        });
+      } else {
+        // For main images, add to the existing images array
+        const currentImages = getAllImages(optionNumber);
+        const newImages = [...currentImages, urlWithCacheBust];
+        updateOptionImages(optionNumber, newImages);
+      }
 
       customToast({
         variant: "default",

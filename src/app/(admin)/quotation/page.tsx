@@ -170,6 +170,9 @@ export default function QuotationPage() {
           delivery_time_option3?: string;
           description_option3?: string;
           selected_option?: number;
+          receiver_name?: string;
+          receiver_phone?: string;
+          receiver_address?: string;
           profiles?: {
             email?: string;
             full_name?: string;
@@ -243,7 +246,11 @@ export default function QuotationPage() {
           price_description_option3: item.price_description_option3,
           delivery_time_option3: item.delivery_time_option3,
           description_option3: item.description_option3,
-          selected_option: item.selected_option
+          selected_option: item.selected_option,
+          product_url: item.product_url,
+          receiver_name: item.receiver_name,
+          receiver_phone: item.receiver_phone,
+          receiver_address: item.receiver_address,
         };
       }) || [];
 
