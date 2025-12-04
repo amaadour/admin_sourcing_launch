@@ -916,22 +916,11 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setPreviewMedia(null)}>
           <div className="relative max-w-5xl w-full max-h-[90vh] bg-black rounded-2xl shadow-2xl p-4 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             {/* Controls */}
-            {previewMedia.type === 'image' && (
-              <MediaPreviewControls
-                zoomLevel={zoomLevel}
-                setZoomLevel={setZoomLevel}
-                onClose={() => setPreviewMedia(null)}
-                mediaType={previewMedia.type}
-              />
-            )}
-            {previewMedia.type === 'video' && (
-              <MediaPreviewControls
-                zoomLevel={zoomLevel}
-                setZoomLevel={setZoomLevel}
-                onClose={() => setPreviewMedia(null)}
-                mediaType={previewMedia.type}
-              />
-            )}
+            <MediaPreviewControls
+              setZoomLevel={setZoomLevel}
+              onClose={() => setPreviewMedia(null)}
+              mediaType={previewMedia.type}
+            />
             {/* Media Content */}
             {previewMedia.type === 'image' ? (
               <ZoomableImage
@@ -1219,12 +1208,10 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
 export default QuotationDetailsModal; 
 
 function MediaPreviewControls({ 
-  zoomLevel: _zoomLevel, 
   setZoomLevel, 
   onClose, 
   mediaType 
 }: { 
-  zoomLevel: number; 
   setZoomLevel: React.Dispatch<React.SetStateAction<number>>; 
   onClose: () => void;
   mediaType: 'image' | 'video';
