@@ -1219,7 +1219,7 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
 export default QuotationDetailsModal; 
 
 function MediaPreviewControls({ 
-  zoomLevel, 
+  zoomLevel: _zoomLevel, 
   setZoomLevel, 
   onClose, 
   mediaType 
