@@ -62,6 +62,28 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [quotationFees, setQuotationFees] = useState<number | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  
+  // Check if URL is a video based on extension or content type
+  const isVideoUrl = (url: string): boolean => {
+    if (!url) return false;
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv'];
+    const lowerUrl = url.toLowerCase();
+    return videoExtensions.some(ext => lowerUrl.includes(ext)) || 
+           lowerUrl.includes('video/') || 
+           lowerUrl.includes('.m3u8') ||
+           lowerUrl.includes('youtube.com') ||
+           lowerUrl.includes('youtu.be') ||
+           lowerUrl.includes('vimeo.com');
+  };
+
+  const handleMediaClick = (e: React.MouseEvent, mediaSrc: string) => {
+    e.stopPropagation();
+    const mediaType = isVideoUrl(mediaSrc) ? 'video' : 'image';
+    setPreviewMedia({ url: mediaSrc, type: mediaType });
+    setZoomLevel(1);
+  };
   
   useEffect(() => {
     console.log('Quotation in modal:', quotation);
@@ -553,13 +575,30 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
                       } ${(isUpdatingOption || !quotationUuid) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <div className="flex items-start gap-4">
-                        <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 dark:border-gray-700">
-                          <Image
-                            src={option.modelImage || "/images/product/product-01.jpg"}
-                            alt={option.modelName || "Product Option"}
-                            fill
-                            className="object-cover"
-                          />
+                        <div 
+                          className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 dark:border-gray-700 cursor-pointer group"
+                          onClick={(e) => handleMediaClick(e, option.modelImage || "/images/product/product-01.jpg")}
+                        >
+                          {isVideoUrl(option.modelImage || "") ? (
+                            <>
+                              <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] px-1 py-0.5 text-center">
+                                Video
+                              </div>
+                            </>
+                          ) : (
+                            <Image
+                              src={option.modelImage || "/images/product/product-01.jpg"}
+                              alt={option.modelName || "Product Option"}
+                              fill
+                              className="object-cover"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-2">
@@ -776,6 +815,77 @@ const CheckoutConfirmationModal: React.FC<CheckoutConfirmationModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Media Preview Modal */}
+      {previewMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setPreviewMedia(null)}>
+          <div className="relative max-w-5xl w-full max-h-[90vh] bg-black rounded-2xl shadow-2xl p-4 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            {/* Controls */}
+            <div className="absolute top-4 right-4 flex gap-2 z-10">
+              {previewMedia.type === 'image' && (
+                <>
+                  <button
+                    className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
+                    aria-label="Zoom in"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomLevel((z: number) => Math.min(z + 0.2, 3));
+                    }}
+                  >
+                    <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  </button>
+                  <button
+                    className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
+                    aria-label="Zoom out"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomLevel((z: number) => Math.max(z - 0.2, 0.5));
+                    }}
+                  >
+                    <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                  </button>
+                </>
+              )}
+              <button
+                className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
+                aria-label="Close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewMedia(null);
+                }}
+              >
+                <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24"><path fillRule="evenodd" fill="black" d="M6.043 16.542a1 1 0 1 0 1.414 1.414L12 13.414l4.542 4.542a1 1 0 0 0 1.414-1.414L13.413 12l4.542-4.542a1 1 0 0 0-1.414-1.414l-4.542 4.542-4.542-4.542A1 1 0 1 0 6.043 7.46L10.585 12z" clipRule="evenodd" /></svg>
+              </button>
+            </div>
+            {/* Media Content */}
+            {previewMedia.type === 'image' ? (
+              <div className="flex-1 flex items-center justify-center w-full h-full min-h-[400px]">
+                <Image
+                  src={previewMedia.url}
+                  alt="Preview"
+                  width={1200}
+                  height={800}
+                  className="max-w-full max-h-[80vh] object-contain transition-transform duration-200"
+                  style={{
+                    transform: `scale(${zoomLevel})`,
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center w-full h-full min-h-[400px]">
+                <video
+                  src={previewMedia.url}
+                  controls
+                  className="max-w-full max-h-[80vh] w-auto h-auto"
+                  preload="metadata"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 };

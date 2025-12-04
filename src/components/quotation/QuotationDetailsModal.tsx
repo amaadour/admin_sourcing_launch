@@ -30,7 +30,7 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
     quotation.selected_option ? String(quotation.selected_option) : null
   );
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -265,8 +265,22 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
 
 
 
-  const handleImageClick = (imageSrc: string) => {
-    setZoomImage(imageSrc);
+  // Check if URL is a video based on extension or content type
+  const isVideoUrl = (url: string): boolean => {
+    if (!url) return false;
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv'];
+    const lowerUrl = url.toLowerCase();
+    return videoExtensions.some(ext => lowerUrl.includes(ext)) || 
+           lowerUrl.includes('video/') || 
+           lowerUrl.includes('.m3u8') ||
+           lowerUrl.includes('youtube.com') ||
+           lowerUrl.includes('youtu.be') ||
+           lowerUrl.includes('vimeo.com');
+  };
+
+  const handleMediaClick = (mediaSrc: string) => {
+    const mediaType = isVideoUrl(mediaSrc) ? 'video' : 'image';
+    setPreviewMedia({ url: validateImageUrl(mediaSrc), type: mediaType });
     setZoomLevel(1);
   };
 
@@ -450,18 +464,34 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
                               <div className="flex flex-wrap gap-2 justify-center">
                                 {imageFields.length > 0 ? (
                                   imageFields.map((img, idx) => (
-                                    <div key={idx} className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700 cursor-pointer" onClick={() => handleImageClick(validateImageUrl(img as string))}>
-                                      <Image
-                                        src={validateImageUrl(img as string)}
-                                        alt={`Option Image ${idx+1}`}
-                                        fill
-                                        className="object-cover"
-                                      />
-                                      {isPlaceholderImage(img as string) && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 bg-opacity-90 dark:bg-opacity-90">
-                                          <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">No image</p>
-                                        </div>
+                                    <div key={idx} className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700 cursor-pointer group" onClick={() => handleMediaClick(img as string)}>
+                                      {isVideoUrl(img as string) ? (
+                                        <>
+                                          <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                              <path d="M8 5v14l11-7z"/>
+                                            </svg>
+                                          </div>
+                                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 text-center">
+                                            Video
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Image
+                                            src={validateImageUrl(img as string)}
+                                            alt={`Option Media ${idx+1}`}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                          {isPlaceholderImage(img as string) && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 bg-opacity-90 dark:bg-opacity-90">
+                                              <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">No image</p>
+                                            </div>
+                                          )}
+                                        </>
                                       )}
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                     </div>
                                   ))
                                 ) : (
@@ -602,20 +632,36 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
           <div className="flex flex-col md:flex-row gap-6">
             <div className="w-full md:w-1/3">
               <div 
-                className="relative w-full h-56 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 cursor-pointer"
-                onClick={() => handleImageClick(validateImageUrl(quotation.product.image))}
+                className="relative w-full h-56 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 cursor-pointer group"
+                onClick={() => handleMediaClick(quotation.product.image)}
               >
-                <Image
-                  src={validateImageUrl(quotation.product.image)}
-                  alt={quotation.product.name}
-                  fill
-                  className="object-cover"
-                />
-                {isPlaceholderImage(quotation.product.image) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 bg-opacity-90 dark:bg-opacity-90">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">No image uploaded</p>
-                  </div>
+                {isVideoUrl(quotation.product.image) ? (
+                  <>
+                    <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                      <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm px-3 py-2 text-center font-medium">
+                      Click to preview video
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Image
+                      src={validateImageUrl(quotation.product.image)}
+                      alt={quotation.product.name}
+                      fill
+                      className="object-cover"
+                    />
+                    {isPlaceholderImage(quotation.product.image) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 bg-opacity-90 dark:bg-opacity-90">
+                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">No image uploaded</p>
+                      </div>
+                    )}
+                  </>
                 )}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
               </div>
             </div>
             <div className="w-full md:w-2/3">
@@ -865,22 +911,39 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
         </div>
       </div>
 
-      {/* Zoom Image Modal */}
-      {zoomImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-          <div className="relative max-w-3xl w-full max-h-[80vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-4 flex flex-col items-center">
+      {/* Media Preview Modal */}
+      {previewMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setPreviewMedia(null)}>
+          <div className="relative max-w-5xl w-full max-h-[90vh] bg-black rounded-2xl shadow-2xl p-4 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             {/* Controls */}
-            <ZoomImageControls
-              zoomLevel={zoomLevel}
-              setZoomLevel={setZoomLevel}
-              onClose={() => setZoomImage(null)}
-            />
-            {/* Image */}
-            <ZoomableImage
-              src={zoomImage}
-              alt="Zoomed image"
-              zoomLevel={zoomLevel}
-            />
+            {previewMedia.type === 'image' && (
+              <MediaPreviewControls
+                zoomLevel={zoomLevel}
+                setZoomLevel={setZoomLevel}
+                onClose={() => setPreviewMedia(null)}
+                mediaType={previewMedia.type}
+              />
+            )}
+            {previewMedia.type === 'video' && (
+              <MediaPreviewControls
+                zoomLevel={zoomLevel}
+                setZoomLevel={setZoomLevel}
+                onClose={() => setPreviewMedia(null)}
+                mediaType={previewMedia.type}
+              />
+            )}
+            {/* Media Content */}
+            {previewMedia.type === 'image' ? (
+              <ZoomableImage
+                src={previewMedia.url}
+                alt="Preview"
+                zoomLevel={zoomLevel}
+              />
+            ) : (
+              <VideoPreview
+                src={previewMedia.url}
+              />
+            )}
           </div>
         </div>
       )}
@@ -1155,37 +1218,52 @@ const QuotationDetailsModal: React.FC<QuotationDetailsProps> = ({ isOpen, onClos
 
 export default QuotationDetailsModal; 
 
-function ZoomImageControls({ setZoomLevel, onClose }: { zoomLevel: number, setZoomLevel: React.Dispatch<React.SetStateAction<number>>, onClose: () => void }) {
-  const [, setRotation] = React.useState(0);
+function MediaPreviewControls({ 
+  zoomLevel, 
+  setZoomLevel, 
+  onClose, 
+  mediaType 
+}: { 
+  zoomLevel: number; 
+  setZoomLevel: React.Dispatch<React.SetStateAction<number>>; 
+  onClose: () => void;
+  mediaType: 'image' | 'video';
+}) {
   return (
     <div className="absolute top-4 right-4 flex gap-2 z-10">
+      {mediaType === 'image' && (
+        <>
+          <button
+            className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
+            aria-label="Zoom in"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomLevel((z: number) => Math.min(z + 0.2, 3));
+            }}
+          >
+            <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          </button>
+          <button
+            className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
+            aria-label="Zoom out"
+            onClick={(e) => {
+              e.stopPropagation();
+              setZoomLevel((z: number) => Math.max(z - 0.2, 0.5));
+            }}
+          >
+            <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+          </button>
+        </>
+      )}
       <button
-        className="p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-white dark:hover:bg-gray-700 transition"
-        aria-label="Zoom in"
-        onClick={() => setZoomLevel((z: number) => Math.min(z + 0.2, 3))}
-      >
-        <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-      </button>
-      <button
-        className="p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-white dark:hover:bg-gray-700 transition"
-        aria-label="Zoom out"
-        onClick={() => setZoomLevel((z: number) => Math.max(z - 0.2, 0.5))}
-      >
-        <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-      </button>
-      <button
-        className="p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-white dark:hover:bg-gray-700 transition"
-        aria-label="Rotate"
-        onClick={() => setRotation((r: number) => r + 90)}
-      >
-        <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-      </button>
-      <button
-        className="p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow hover:bg-white dark:hover:bg-gray-700 transition"
+        className="p-2 rounded-full bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-white dark:hover:bg-gray-700 transition"
         aria-label="Close"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       >
-        <svg className="w-6 h-6 text-gray-800 dark:text-white" fill="none" viewBox="0 0 24 24"><path fillRule="evenodd" d="M6.043 16.542a1 1 0 1 0 1.414 1.414L12 13.414l4.542 4.542a1 1 0 0 0 1.414-1.414L13.413 12l4.542-4.542a1 1 0 0 0-1.414-1.414l-4.542 4.542-4.542-4.542A1 1 0 1 0 6.043 7.46L10.585 12z" clipRule="evenodd" /></svg>
+        <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24"><path fillRule="evenodd" fill="black" d="M6.043 16.542a1 1 0 1 0 1.414 1.414L12 13.414l4.542 4.542a1 1 0 0 0 1.414-1.414L13.413 12l4.542-4.542a1 1 0 0 0-1.414-1.414l-4.542 4.542-4.542-4.542A1 1 0 1 0 6.043 7.46L10.585 12z" clipRule="evenodd" /></svg>
       </button>
     </div>
   );
@@ -1195,10 +1273,10 @@ function ZoomableImage({ src, alt, zoomLevel }: { src: string, alt: string, zoom
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
   return (
-    <div className="flex-1 flex items-center justify-center w-full h-full">
+    <div className="flex-1 flex items-center justify-center w-full h-full min-h-[400px]">
       {loading && !error && (
         <div className="flex items-center justify-center w-full h-full">
-          <span className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></span>
+          <span className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
         </div>
       )}
       {error && (
@@ -1211,9 +1289,9 @@ function ZoomableImage({ src, alt, zoomLevel }: { src: string, alt: string, zoom
         <Image
           src={src}
           alt={alt}
-          width={800}
-          height={600}
-          className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
+          width={1200}
+          height={800}
+          className="max-w-full max-h-[80vh] object-contain transition-transform duration-200"
           style={{
             transform: `scale(${zoomLevel})`,
             display: loading ? "none" : "block",
@@ -1221,6 +1299,41 @@ function ZoomableImage({ src, alt, zoomLevel }: { src: string, alt: string, zoom
           onLoad={() => setLoading(false)}
           onError={() => { setError(true); setLoading(false); }}
         />
+      )}
+    </div>
+  );
+}
+
+function VideoPreview({ src }: { src: string }) {
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  return (
+    <div className="flex-1 flex items-center justify-center w-full h-full min-h-[400px]">
+      {loading && !error && (
+        <div className="flex items-center justify-center w-full h-full">
+          <span className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></span>
+        </div>
+      )}
+      {error && (
+        <div className="flex flex-col items-center justify-center w-full h-full text-gray-400">
+          <span className="text-4xl mb-2">🎥</span>
+          <span>Video failed to load</span>
+        </div>
+      )}
+      {!error && (
+        <video
+          ref={videoRef}
+          src={src}
+          controls
+          className="max-w-full max-h-[80vh] w-auto h-auto"
+          onLoadedData={() => setLoading(false)}
+          onError={() => { setError(true); setLoading(false); }}
+          preload="metadata"
+        >
+          Your browser does not support the video tag.
+        </video>
       )}
     </div>
   );
