@@ -31,6 +31,7 @@ interface ShipmentTrackingData {
   estimated_delivery: string | null;
   created_at: string;
   user_id: string | null;
+  label: string | null;
   // Related quotation data
   quotation?: QuotationData | null;
   receiver_name?: string | null;
@@ -180,6 +181,7 @@ export default function ShipmentTrackingPage() {
           receiver_name?: string | null;
           receiver_phone?: string | null;
           receiver_address?: string | null;
+          label: string | null;
         };
 
         const shipmentsRows = (allShipments ?? []) as unknown as ShippingRow[];
@@ -895,6 +897,9 @@ export default function ShipmentTrackingPage() {
                 <p className="text-gray-600 dark:text-gray-400">
                   Tracking Number: {selectedShipment.quotation.quotation_id || "N/A"}
                 </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <span className="font-medium">Label:</span> {selectedShipment.label || "Not assigned"}
+                </p>
               </div>
             </div>
             
@@ -1062,6 +1067,57 @@ export default function ShipmentTrackingPage() {
               </div>
             </div>
 
+            {/* Image Gallery Section */}
+              <div className="mt-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Shipment Images</h3>
+                <div>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileInputChange(e, 'images')}
+                    disabled={uploadingFiles}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={uploadingFiles}
+                    onClick={() => triggerFileInput('image-upload')}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    {uploadingFiles ? 'Uploading...' : 'Upload Images'}
+                  </Button>
+                </div>
+              </div>
+              
+              {selectedShipment.images_urls && selectedShipment.images_urls.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {selectedShipment.images_urls.map((url, idx) => {
+                    const isValid = isValidUrl(url);
+                    const imageUrl = isValid ? validateImageUrl(url) : imagePlaceholder;
+                    
+                    return (
+                      <div key={idx} className="relative h-32 rounded-lg overflow-hidden group">
+                        <Image
+                          src={imageUrl}
+                          alt={`Shipment image ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                  {uploadingFiles ? "Uploading images..." : "No images available"}
+              </div>
+            )}
+            </div>
+
             {/* Receiver Information Section - Enhanced to match payment page style */}
             {(selectedShipment.receiver_name || selectedShipment.receiver_phone || selectedShipment.receiver_address || selectedShipment.quotation?.receiver_name || selectedShipment.quotation?.receiver_phone || selectedShipment.quotation?.receiver_address) && (
               <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 border dark:border-purple-800 rounded-lg p-6 md:p-8 border-[var(--color-amber-50)]">
@@ -1185,55 +1241,14 @@ export default function ShipmentTrackingPage() {
               </div>
             )}
 
-            {/* Image Gallery Section */}
-              <div className="mt-6">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Shipment Images</h3>
-                <div>
-                  <input
-                    id="image-upload"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileInputChange(e, 'images')}
-                    disabled={uploadingFiles}
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={uploadingFiles}
-                    onClick={() => triggerFileInput('image-upload')}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    {uploadingFiles ? 'Uploading...' : 'Upload Images'}
-                  </Button>
-                </div>
+            {/* Label in Carton Section */}
+            <div className="mt-6 p-4 border border-gray-100 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">Label in Carton</h3>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+                <p className="text-gray-800 dark:text-gray-200 font-medium">
+                  {selectedShipment.label || "Not assigned"}
+                </p>
               </div>
-              
-              {selectedShipment.images_urls && selectedShipment.images_urls.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {selectedShipment.images_urls.map((url, idx) => {
-                    const isValid = isValidUrl(url);
-                    const imageUrl = isValid ? validateImageUrl(url) : imagePlaceholder;
-                    
-                    return (
-                      <div key={idx} className="relative h-32 rounded-lg overflow-hidden group">
-                        <Image
-                          src={imageUrl}
-                          alt={`Shipment image ${idx + 1}`}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  {uploadingFiles ? "Uploading images..." : "No images available"}
-              </div>
-            )}
             </div>
 
             {/* Video Gallery Section */}
