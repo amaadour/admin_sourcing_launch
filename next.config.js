@@ -5,8 +5,11 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    domains: [
-      'cfhochnjniddaztgwrbk.supabase.co'
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cfhochnjniddaztgwrbk.supabase.co',
+      },
     ],
     unoptimized: true,
   },
@@ -21,4 +24,4 @@ const nextConfig = {
   assetPrefix: process.env.NODE_ENV === 'production' ? '/' : '',
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;
