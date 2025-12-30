@@ -32,6 +32,49 @@ interface QuotationInfo {
   imageUrl?: string;
 }
 
+interface FullQuotationDetails {
+  id: string;
+  quotation_id: string;
+  product_name: string;
+  quantity: number;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+  image_url?: string;
+  shipping_country: string;
+  shipping_city: string;
+  shipping_method: string;
+  service_type?: string;
+  product_url?: string;
+  selected_option?: number;
+  receiver_name?: string;
+  receiver_phone?: string;
+  receiver_address?: string;
+  Quotation_fees?: number;
+  title_option1?: string;
+  total_price_option1?: number;
+  unit_price_option1?: number;
+  delivery_time_option1?: string;
+  description_option1?: string;
+  price_description_option1?: string;
+  unit_weight_option1?: number;
+  title_option2?: string;
+  total_price_option2?: number;
+  unit_price_option2?: number;
+  delivery_time_option2?: string;
+  description_option2?: string;
+  price_description_option2?: string;
+  unit_weight_option2?: number;
+  title_option3?: string;
+  total_price_option3?: number;
+  unit_price_option3?: number;
+  delivery_time_option3?: string;
+  description_option3?: string;
+  price_description_option3?: string;
+  unit_weight_option3?: number;
+  [key: string]: unknown; // For dynamic fields like image_option1, etc.
+}
+
 // Cache configuration
 const CACHE_KEY = 'payment_data_cache';
 const CACHE_EXPIRY = 30 * 1000; // 30 seconds in milliseconds (reduced from 5 minutes)
@@ -77,7 +120,7 @@ export default function PaymentPage() {
   // Quotation details modal states
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [selectedPaymentForQuotation, setSelectedPaymentForQuotation] = useState<PaymentInfo | null>(null);
-  const [fullQuotationDetails, setFullQuotationDetails] = useState<any[]>([]);
+  const [fullQuotationDetails, setFullQuotationDetails] = useState<FullQuotationDetails[]>([]);
   const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
 
   const fetchAllQuotationDetails = useCallback(async (paymentsData: PaymentInfo[]) => {
@@ -746,15 +789,6 @@ export default function PaymentPage() {
     );
   };
 
-  const toggleExpandPayment = (paymentId: string) => {
-    if (expandedPayment === paymentId) {
-      setExpandedPayment(null);
-    } else {
-      setExpandedPayment(paymentId);
-      // Reset selected file when expanding to ensure correct UI state
-      setSelectedFile(null);
-    }
-  };
 
   // Open quotation details modal and fetch full details
   const openQuotationDetailsModal = async (payment: PaymentInfo) => {
