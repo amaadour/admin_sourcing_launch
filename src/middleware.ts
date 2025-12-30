@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 
 // List of public routes that don't require authentication
-const publicRoutes = ['/signin', '/signup', '/reset-password', '/verify-code', '/terms-of-use', '/privacy-policy'];
+const publicRoutes = ['/signin', '/signup', '/reset-password'];
 
 // Client accessible dashboard routes
 const clientRoutes = [
@@ -15,8 +15,13 @@ const clientRoutes = [
   '/shipment-tracking',
   '/payment-example',
   '/checkoutpage',
-  '/verify-code',
-  '/pending-approval',
+  '/user-profiles',
+  '/user-profile-edit',
+  '/user-profile-password',
+  '/user-profile-delete',
+  '/user-profile-logout',
+  '/user-profile-logout',
+  '/user-profile-logout',
 ];
 
 // Admin-only routes (redirect clients away from these)
@@ -68,13 +73,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
     
-    // If the user is not logged in and trying to access a client dashboard route
-    if (!session && clientRoutes.includes(path)) {
-      console.log('Redirecting to /signup from:', path);
-      const redirectUrl = new URL('/signup', req.url);
-      return NextResponse.redirect(redirectUrl);
-    }
-    
     // If the user is not logged in and trying to access a protected route
     if (!session && !publicRoutes.includes(path)) {
       console.log('Redirecting to /signin from:', path);
@@ -84,20 +82,6 @@ export async function middleware(req: NextRequest) {
     
     // If user is logged in and trying to access auth pages
     if (session && publicRoutes.includes(path)) {
-      // On /signin, if not approved, send to pending-approval instead
-      if (path === '/signin') {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('approve')
-          .eq('id', session.user.id)
-          .single();
-
-        if (!profileError && profile && profile.approve === false) {
-          const redirectUrl = new URL('/pending-approval', req.url);
-          return NextResponse.redirect(redirectUrl);
-        }
-      }
-
       console.log('Redirecting to /dashboard-home from:', path);
       const redirectUrl = new URL('/dashboard-home', req.url);
       return NextResponse.redirect(redirectUrl);
@@ -108,7 +92,14 @@ export async function middleware(req: NextRequest) {
       // Get user role
       const { data: userData, error: userError } = await supabase
         .from('profiles')
-        .select('role')
+        .select(`
+          *,
+          profiles (
+            id,
+            email,
+            full_name
+          )
+        `)
         .eq('id', session.user.id)
         .single();
         
@@ -147,4 +138,4 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image).*)'],
-}; 
+}

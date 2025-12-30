@@ -1,203 +1,86 @@
 import React from 'react';
-import Image from 'next/image';
 
-type BankType = 'WISE' | 'PAYONEER' | 'BINANCE';
+type BankType = 'WISE' | 'SOCIETE_GENERALE' | 'CIH';
 
 interface BankInformationProps {
   bank: BankType;
 }
 
 interface BankDetails {
-  name: string;
-  logo?: string;
   accountName: string;
-  email?: string;
-  accountNumber?: string;
-  iban?: string;
-  swift?: string;
-  swiftCode?: string;
-  ribNumber?: string;
-  address?: string;
+  iban: string;
+  swift: string;
+  bankAddress: string;
+  accountDetails: string;
+  rib?: string;
   currency: string;
-  routing?: string;
-  accountType?: string;
 }
 
 const bankInformation: Record<BankType, BankDetails> = {
   WISE: {
-    name: "Wise Bank",
-    logo: "/images/banks/wise1.svg",
-    accountName: "SOURCING LAUNCH LTD",
-    email: "mehdi@sourcinglaunch.com",
-    iban: "BE24 9052 0546 8538",
+    accountName: "WISE BUSINESS",
+    iban: "BE12 3456 7890 1234",
     swift: "TRWIBEB1XXX",
-    address: "Wise, Rue du Trône 100, 3rd floor, Brussels, 1050, Belgium",
+    bankAddress: "Avenue Louise 54, Room S52, Brussels 1050, Belgium",
+    accountDetails: "Account number: 1234567890",
     currency: "EUR"
   },
-  PAYONEER: {
-    name: "Citibank (Payoneer)",
-    logo: "/images/banks/payoneer.svg",
-    accountName: "SOURCING LAUNCH LTD",
-    email: "mehdi@sourcinglaunch.com",
-    accountNumber: "70583160001753419",
-    accountType: "CHECKING",
-    routing: "031100209",
-    swiftCode: "CITIUS33",
-    address: "111 Wall Street New York, NY 10043 USA",
-    currency: "USD"
+  SOCIETE_GENERALE: {
+    accountName: "SOCIETE GENERALE MAROC",
+    iban: "FR76 3000 6000 0123 4567 8900 189",
+    swift: "SOGEFRPP",
+    bankAddress: "29 Boulevard Haussmann, 75009 Paris, France",
+    accountDetails: "Account number: 00020012345",
+    rib: "123456789012345678901234",
+    currency: "EUR"
   },
-  BINANCE: {
-    name: "Binance Wallet",
-    logo: "/images/banks/Binance_Logo.svg.png",
-    accountName: "Binance Wallet",
-    accountNumber: "0x236f536f5d68184073057259b1a4da495a28e8a8",
-    address: "Network: BNB Smart Chain (BEP20)",
-    currency: "USDT"
+  CIH: {
+    accountName: "CIH BANK",
+    iban: "MA64 011 519 0000001210001234 56",
+    swift: "CIHWMAMC",
+    bankAddress: "187, Avenue Hassan II, Casablanca, Morocco",
+    accountDetails: "Account number: 007 640 0001210001234567",
+    rib: "007640000121000123456789",
+    currency: "MAD"
   }
 };
 
 const BankInformation: React.FC<BankInformationProps> = ({ bank }) => {
   const info = bankInformation[bank];
 
-  const handleCopy = (info: BankDetails) => {
-    // Create a nicely formatted string with all relevant bank details
-    let textToCopy = `${info.name}\n`;
-    textToCopy += `Beneficiary Name: ${info.accountName}\n`;
-    
-    if (info.email) {
-      textToCopy += `Email: ${info.email}\n`;
-    }
-    
-    if (info.accountNumber) {
-      textToCopy += `Account Number: ${info.accountNumber}\n`;
-    }
-    
-    if (info.accountType) {
-      textToCopy += `Account Type: ${info.accountType}\n`;
-    }
-    
-    if (info.routing) {
-      textToCopy += `Routing (ABA): ${info.routing}\n`;
-    }
-    
-    if (info.iban) {
-      textToCopy += `IBAN: ${info.iban}\n`;
-    }
-    
-    if (info.ribNumber) {
-      textToCopy += `RIB Number: ${info.ribNumber}\n`;
-    }
-    
-    if (info.swift || info.swiftCode) {
-      textToCopy += `Swift/BIC: ${info.swift || info.swiftCode}\n`;
-    }
-    
-    if (info.address) {
-      textToCopy += `Address: ${info.address}\n`;
-    }
-    
-    textToCopy += `Currency: ${info.currency}`;
-    
-    navigator.clipboard.writeText(textToCopy)
-      .then(() => {
-        // Could add a toast notification here
-        console.log('Copied to clipboard');
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-  };
-
   return (
-    <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/60 mt-3">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          {info.logo ? (
-            <Image src={info.logo} alt={info.name} width={24} height={24} />
-          ) : (
-            <span className="text-lg font-medium text-blue-600 dark:text-blue-400">🏦</span>
-          )}
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{info.name}</h3>
+    <div className="space-y-4">
+      <h4 className="font-medium text-gray-900 dark:text-white">Bank Information</h4>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">Account Name:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.accountName}</span>
         </div>
-        <button 
-          onClick={() => handleCopy(info)}
-          className="px-4 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          Copy
-        </button>
-      </div>
-
-      {/* Bank details area (removed scrollbar) */}
-      <div className="pr-1">
-        <div className="space-y-3">
-          <div>
-            <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Beneficiary Name:</span>
-            <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.accountName}</span>
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">IBAN:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.iban}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">SWIFT/BIC:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.swift}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">Bank Address:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.bankAddress}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">Account Details:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.accountDetails}</span>
+        </div>
+        {info.rib && (
+          <div className="flex justify-between">
+            <span className="text-gray-600 dark:text-gray-300">RIB:</span>
+            <span className="font-medium text-gray-900 dark:text-white">{info.rib}</span>
           </div>
-
-          {info.email && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Email:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.email}</span>
-            </div>
-          )}
-
-          {info.accountNumber && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Account Number:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.accountNumber}</span>
-            </div>
-          )}
-
-          {info.accountType && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Account Type:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.accountType}</span>
-            </div>
-          )}
-
-          {info.routing && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Routing (ABA):</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.routing}</span>
-            </div>
-          )}
-
-          {info.iban && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">IBAN:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.iban}</span>
-            </div>
-          )}
-
-          {info.ribNumber && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">RIB Number:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.ribNumber}</span>
-            </div>
-          )}
-
-          {(info.swift || info.swiftCode) && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Swift/BIC:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.swift || info.swiftCode}</span>
-            </div>
-          )}
-
-          {info.address && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Address:</span>
-              <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.address}</span>
-            </div>
-          )}
-
-          <div>
-            <span className="block text-sm font-medium text-gray-700 dark:text-gray-400">Currency:</span>
-            <span className="block text-sm font-medium text-gray-900 dark:text-gray-200 mt-1">{info.currency}</span>
-          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-gray-600 dark:text-gray-300">Currency:</span>
+          <span className="font-medium text-gray-900 dark:text-white">{info.currency}</span>
         </div>
       </div>
     </div>

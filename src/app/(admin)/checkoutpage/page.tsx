@@ -3,12 +3,20 @@
 import type React from "react"
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import type { Database as SupabaseDB } from "@/types/supabase"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import Image from "next/image"
 import { useAuth } from "@/context/AuthContext"
 import Button from "@/components/ui/button/Button"
-import { supabase } from "@/lib/supabase"
-import type { Database } from "@/types/supabase"
+
+// Define Database types
+// Local Database typing is replaced by shared project types from '@/types/supabase'
+
+// Using shared Supabase client from '@/lib/supabase'
+
+// Development user ID used only when bypassing auth in development
+const DEV_USER_ID = "7bd1a436-bb10-4b3f-b09d-2a52876fc4ed"
 
 // Interface for debug info state
 interface DebugInfoData {
@@ -53,8 +61,6 @@ interface QuotationData {
   priceOptions?: PriceOption[]
   selectedOption?: string
 }
-
-type PaymentInsertData = Database['public']['Tables']['payments']['Insert']
 
 // Component that uses searchParams (client component)
 function CheckoutPageContent() {
@@ -118,9 +124,8 @@ function CheckoutPageContent() {
           return
         }
 
-        // Use a valid UUID format for development mode
-        const devUserId = "7bd1a436-bb10-4b3f-b09d-2a52876fc4ed" // Valid UUID for development
-        const effectiveUserId = userId || (bypassAuth ? devUserId : null)
+        // Determine effective user id (string) or null if unavailable and not bypassing
+        const effectiveUserId = userId || (bypassAuth ? DEV_USER_ID : null)
 
         setDebugState((prev) => ({
           ...prev,
@@ -129,20 +134,21 @@ function CheckoutPageContent() {
             : "Authenticated as: " + effectiveUserId?.substring(0, 8) + "...",
         }))
 
-        // Fetch quotations
-        setDebugState((prev) => ({ ...prev, dataFetchStatus: "Fetching quotations..." }))
-
-        // Additional null check for TypeScript
+        // Extra runtime/type guard to satisfy TypeScript and prevent null usage
         if (!effectiveUserId) {
-          setError("User authentication required.")
+          setDebugState((prev) => ({ ...prev, authStatus: "No effective user id" }))
+          setError("You need to be logged in to view the checkout page.")
           return
         }
+
+        // Fetch quotations
+        setDebugState((prev) => ({ ...prev, dataFetchStatus: "Fetching quotations..." }))
 
         const { data: quotationsData, error: quotationsError } = await supabase
           .from("quotations")
           .select("*")
           .eq("status", "Approved")
-          .eq("user_id", effectiveUserId)
+          .eq("user_id", effectiveUserId as string)
 
         if (!isMounted) return
 
@@ -170,7 +176,9 @@ function CheckoutPageContent() {
         const initialQuantities: Record<string, number> = {}
         const initialSelectedQuotations = new Set<string>()
 
-        for (const quotationData of quotationsData) {
+        // quotationsData contains rows from the quotations table
+        const quotationRows = (quotationsData ?? []) as SupabaseDB["public"]["Tables"]["quotations"]["Row"][]
+        for (const quotationData of quotationRows) {
           const priceOptions: PriceOption[] = []
 
           // Add option 1 if it exists
@@ -445,12 +453,12 @@ function CheckoutPageContent() {
       const { data: { session } } = await supabase.auth.getSession()
       const isDevelopment = process.env.NODE_ENV === "development"
       
-      let effectiveUserId = session?.user?.id
+      let effectiveUserId: string | undefined = session?.user?.id
 
       // In development mode, proceed with a development user ID if no session exists
       if (isDevelopment && !effectiveUserId) {
         console.log("Development mode: Using development user ID")
-        effectiveUserId = session?.user?.id // Development user ID
+        effectiveUserId = DEV_USER_ID
       } else if (!effectiveUserId) {
         // In production, require authentication
         console.error("No authenticated user found")
@@ -469,20 +477,16 @@ function CheckoutPageContent() {
         .map((quotation) => quotation.uuid)
         .filter((uuid): uuid is string => uuid !== undefined)
 
-      // Additional check to ensure effectiveUserId is not null/undefined
-      if (!effectiveUserId) {
-        console.error("No authenticated user found")
-        alert("Please sign in to complete your payment.")
-        router.push("/signin")
-        return
-      }
+      // Generate a reference number
+      const referenceNumber = `REF-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${new Date().getTime().toString().substring(7)}`
 
       // Create payment data with all required fields
-      const paymentData: PaymentInsertData = {
+      const paymentData: SupabaseDB["public"]["Tables"]["payments"]["Insert"] = {
         user_id: effectiveUserId,
         total_amount: totalAmount,
         method: selectedBank || "Other",
-        status: "pending" as const,
+        status: "pending",
+        reference_number: referenceNumber,
         quotation_ids: quotationUUIDs
       }
 
@@ -491,7 +495,7 @@ function CheckoutPageContent() {
       // Insert the payment record
       const { data: paymentResult, error: paymentError } = await supabase
         .from("payments")
-        .insert(paymentData)
+        .insert(paymentData as never)
         .select()
         .single()
 
@@ -520,18 +524,19 @@ function CheckoutPageContent() {
 
       // If payment was saved successfully, create payment_quotations junction records
       if (paymentResult) {
+        const paymentId = (paymentResult as unknown as { id: string }).id
         // Create payment-quotation links
-        const paymentQuotationsData = quotationUUIDs.map((quotationId) => ({
-          payment_id: paymentResult.id,
+        const paymentQuotationsData: SupabaseDB["public"]["Tables"]["payment_quotations"]["Insert"][] = quotationUUIDs.map((quotationId) => ({
+          payment_id: paymentId,
           quotation_id: quotationId,
-          user_id: effectiveUserId!  // We already checked this above
+          user_id: effectiveUserId
         }))
 
         if (paymentQuotationsData.length > 0) {
           try {
             const { error: junctionError } = await supabase
               .from("payment_quotations")
-              .insert(paymentQuotationsData)
+              .insert(paymentQuotationsData as never)
 
             if (junctionError) {
               console.warn("Warning: Failed to link some quotations to payment:", {
@@ -545,12 +550,12 @@ function CheckoutPageContent() {
         }
 
         // Set the current payment ID and open the upload modal
-        setCurrentPaymentId(paymentResult.id)
+        setCurrentPaymentId(paymentId)
         setIsUploadModalOpen(true)
       } else {
         // Fallback if no payment ID is returned
         alert(
-          `Payment of ${getTotalAmount()} for ${selectedQuotations.size} quotation(s) processed successfully via ${selectedBank || "default method"}.`
+          `Payment of ${getTotalAmount()} for ${selectedQuotations.size} quotation(s) processed successfully via ${selectedBank || "default method"}. Reference: ${referenceNumber}`
         )
         router.push("/payment")
       }
@@ -615,7 +620,7 @@ function CheckoutPageContent() {
       // Update the payment record with the proof URL
       const { error: updateError } = await supabase
         .from("payments")
-        .update({ proof_url: urlData.publicUrl, payment_proof: urlData.publicUrl, status: "processing" })
+        .update({ proof_url: urlData.publicUrl, payment_proof: urlData.publicUrl, status: "processing" } as never) 
         .eq("id", currentPaymentId)
 
       if (updateError) {

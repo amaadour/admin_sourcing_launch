@@ -1,25 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
-// Get the environment variables - add MCP specific environment variables
+// Get the environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-// Log environment variables for debugging
-console.log("Supabase Environment Variables:");
-console.log("- URL:", supabaseUrl ? "Set (value hidden)" : "NOT SET");
-console.log("- Key:", supabaseKey ? "Set (value hidden)" : "NOT SET");
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // Debug missing environment variables
 if (!supabaseUrl) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
 }
 
-if (!supabaseKey) {
+if (!supabaseAnonKey) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
 }
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
 // Enhanced client with better session persistence options and error handling
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '', {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     // Store a local copy of session data

@@ -68,14 +68,41 @@ function PaymentDetailsContent() {
           throw new Error('Payment not found');
         }
 
-        setPayment(paymentData);
+        // Normalize payment data to expected shape
+        const paymentRow = paymentData as unknown as {
+          id: string;
+          reference_number: string;
+          total_amount: number | string;
+          method: string;
+          status: string;
+          created_at: string;
+          quotation_ids?: string[] | string | null;
+        };
+
+        const quotationIdsArray: string[] = Array.isArray(paymentRow.quotation_ids)
+          ? paymentRow.quotation_ids
+          : typeof paymentRow.quotation_ids === 'string'
+            ? paymentRow.quotation_ids.split(',').map((id) => id.trim()).filter(Boolean)
+            : [];
+
+        setPayment({
+          id: paymentRow.id,
+          reference_number: paymentRow.reference_number,
+          total_amount: typeof paymentRow.total_amount === 'number'
+            ? paymentRow.total_amount
+            : Number(paymentRow.total_amount ?? 0),
+          method: paymentRow.method,
+          status: paymentRow.status,
+          created_at: paymentRow.created_at,
+          quotation_ids: quotationIdsArray,
+        });
 
         // Fetch quotations associated with this payment
-        if (paymentData.quotation_ids && paymentData.quotation_ids.length > 0) {
+        if (quotationIdsArray.length > 0) {
           const { data: quotationsData, error: quotationsError } = await supabase
             .from('quotations')
             .select('*')
-            .in('id', paymentData.quotation_ids);
+            .in('id', quotationIdsArray);
 
           if (quotationsError) {
             throw new Error(`Error fetching quotations: ${quotationsError.message}`);

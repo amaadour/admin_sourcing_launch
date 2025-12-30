@@ -69,7 +69,7 @@ const ProcessingOrderView: React.FC<ProcessingOrderViewProps> = ({ order, canEdi
   };
 
   return (
-    <div className="max-h-[calc(100vh-240px)] px-1 py-2">
+    <div className="max-h-[calc(100vh-240px)] overflow-y-auto px-1 py-2">
       {/* Product Information - Same for both views */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
@@ -349,7 +349,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-4xl h-auto mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 custom-scrollbar">
+    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-4xl h-auto mx-auto p-4 sm:p-6 overflow-hidden">
       {/* Modal header */}
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         <div>
@@ -390,7 +390,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ isOpen, onClose, 
         />
       ) : (
         // Existing content for non-Processing orders
-        <div className="max-h-[calc(100vh-200px)] px-1 py-2">
+        <div className="max-h-[calc(100vh-240px)] overflow-y-auto px-1 py-2">
           {/* Product Information */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
@@ -680,7 +680,7 @@ const ShippingInfoModal: React.FC<ShippingInfoModalProps> = ({ isOpen, onClose, 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-md h-auto mx-auto p-4 sm:p-6 custom-scrollbar">
+    <Modal isOpen={isOpen} onClose={onClose} showCloseButton={false} className="max-w-md h-auto mx-auto p-4 sm:p-6 overflow-hidden">
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         <div>
           <h2 className="text-xl font-bold text-[#0D47A1] dark:text-white">

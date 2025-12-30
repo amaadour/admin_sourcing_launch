@@ -18,6 +18,8 @@ export interface Database {
           status: 'pending' | 'processing' | 'completed' | 'failed'
           created_at: string
           proof_url?: string
+          payment_proof?: string
+          reference_number?: string
           quotation_ids?: string[]
         }
         Insert: {
@@ -28,6 +30,8 @@ export interface Database {
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           created_at?: string
           proof_url?: string
+          payment_proof?: string
+          reference_number?: string
           quotation_ids?: string[]
         }
         Update: {
@@ -38,6 +42,8 @@ export interface Database {
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           created_at?: string
           proof_url?: string
+          payment_proof?: string
+          reference_number?: string
           quotation_ids?: string[]
         }
       }
@@ -75,6 +81,27 @@ export interface Database {
           product_images?: string[]
           image_url?: string
           hasImage?: boolean
+          service_type?: string
+          product_url?: string
+          shipping_method?: string
+          shipping_country?: string
+          shipping_city?: string
+          title_option1?: string
+          total_price_option1?: string
+          delivery_time_option1?: string
+          description_option1?: string
+          image_option1?: string
+          title_option2?: string
+          total_price_option2?: string
+          delivery_time_option2?: string
+          description_option2?: string
+          image_option2?: string
+          title_option3?: string
+          total_price_option3?: string
+          delivery_time_option3?: string
+          description_option3?: string
+          image_option3?: string
+          user_id: string
         }
         Insert: {
           id?: string
@@ -86,6 +113,27 @@ export interface Database {
           product_images?: string[]
           image_url?: string
           hasImage?: boolean
+          service_type?: string
+          product_url?: string
+          shipping_method?: string
+          shipping_country?: string
+          shipping_city?: string
+          title_option1?: string
+          total_price_option1?: string
+          delivery_time_option1?: string
+          description_option1?: string
+          image_option1?: string
+          title_option2?: string
+          total_price_option2?: string
+          delivery_time_option2?: string
+          description_option2?: string
+          image_option2?: string
+          title_option3?: string
+          total_price_option3?: string
+          delivery_time_option3?: string
+          description_option3?: string
+          image_option3?: string
+          user_id?: string
         }
         Update: {
           id?: string
@@ -97,6 +145,27 @@ export interface Database {
           product_images?: string[]
           image_url?: string
           hasImage?: boolean
+          service_type?: string
+          product_url?: string
+          shipping_method?: string
+          shipping_country?: string
+          shipping_city?: string
+          title_option1?: string
+          total_price_option1?: string
+          delivery_time_option1?: string
+          description_option1?: string
+          image_option1?: string
+          title_option2?: string
+          total_price_option2?: string
+          delivery_time_option2?: string
+          description_option2?: string
+          image_option2?: string
+          title_option3?: string
+          total_price_option3?: string
+          delivery_time_option3?: string
+          description_option3?: string
+          image_option3?: string
+          user_id?: string
         }
       }
     }

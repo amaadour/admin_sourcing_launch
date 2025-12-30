@@ -14,7 +14,6 @@ import Image from "next/image";
 import { Modal } from "@/components/ui/modal";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 
 // Product fallback image
 const defaultProductImage = "/images/product/product-01.jpg";
@@ -23,8 +22,8 @@ const imagePlaceholder = "/images/placeholder.jpg";
 // Define the shipment tracking data type
 interface ShipmentTrackingData {
   id: string;
-  quotation_id: string;
-  status: string;
+  quotation_id: string | null;
+  status: string | null;
   location: string | null;
   videos_urls: string[] | null;
   images_urls: string[] | null;
@@ -32,12 +31,17 @@ interface ShipmentTrackingData {
   estimated_delivery: string | null;
   created_at: string;
   user_id: string | null;
-  label?: string | null;
+  label: string | null;
   // Related quotation data
   quotation?: QuotationData | null;
-  receiver_name?: string;
-  receiver_phone?: string;
-  receiver_address?: string;
+  receiver_name?: string | null;
+  receiver_phone?: string | null;
+  receiver_address?: string | null;
+  // User data from join
+  user?: {
+    full_name: string;
+    email: string;
+  } | null;
 }
 
 // Define quotation data interface
@@ -49,50 +53,9 @@ interface QuotationData {
   shipping_country: string;
   shipping_city: string;
   shipping_method: string;
-}
-
-// Full quotation details interface
-interface FullQuotationDetails {
-  id: string;
-  quotation_id: string;
-  product_name: string;
-  quantity: number;
-  status: string;
-  created_at: string;
-  updated_at?: string;
-  image_url?: string;
-  shipping_country: string;
-  shipping_city: string;
-  shipping_method: string;
-  service_type?: string;
-  product_url?: string;
-  selected_option?: number;
-  receiver_name?: string;
-  receiver_phone?: string;
-  receiver_address?: string;
-  Quotation_fees?: number;
-  title_option1?: string;
-  total_price_option1?: number;
-  unit_price_option1?: number;
-  delivery_time_option1?: string;
-  description_option1?: string;
-  price_description_option1?: string;
-  unit_weight_option1?: number;
-  title_option2?: string;
-  total_price_option2?: number;
-  unit_price_option2?: number;
-  delivery_time_option2?: string;
-  description_option2?: string;
-  price_description_option2?: string;
-  unit_weight_option2?: number;
-  title_option3?: string;
-  total_price_option3?: number;
-  unit_price_option3?: number;
-  delivery_time_option3?: string;
-  description_option3?: string;
-  price_description_option3?: string;
-  unit_weight_option3?: number;
-  [key: string]: unknown; // For dynamic fields like image_option1, etc.
+  receiver_name?: string | null;
+  receiver_phone?: string | null;
+  receiver_address?: string | null;
 }
 
 // Receiver information interface
@@ -103,22 +66,31 @@ interface ReceiverInfo {
 }
 
 export default function ShipmentTrackingPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/signup");
-    }
-  }, [user, loading, router]);
+  const { user } = useAuth();
   const [shipmentData, setShipmentData] = useState<ShipmentTrackingData[]>([]);
   const [selectedShipment, setSelectedShipment] = useState<ShipmentTrackingData | null>(null);
   const [filteredShipmentData, setFilteredShipmentData] = useState<ShipmentTrackingData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Add this loading state for the page
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Status management states
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [customStatus, setCustomStatus] = useState<string>("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
+
+  // Predefined status options
+  const statusOptions = [
+    "In Transit",
+    "Processing",
+    "Delivered",
+    "Delayed",
+    "Waiting",
+    "Custom"
+  ];
   
   // Receiver info modal states
   const [showReceiverModal, setShowReceiverModal] = useState(false);
@@ -135,99 +107,161 @@ export default function ShipmentTrackingPage() {
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
   const [saveForLater, setSaveForLater] = useState(false);
 
-  // Image modal states
-  const [imageModalOpen, setImageModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState("");
+  // Shipment details edit state
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editedShipment, setEditedShipment] = useState<{
+    location: string;
+    estimated_delivery: string;
+    delivered_at: string | null;
+    receiver_name: string;
+    receiver_phone: string;
+    receiver_address: string;
+    origin: string;
+    destination_country: string;
+    destination_city: string;
+  }>({
+    location: "",
+    estimated_delivery: "",
+    delivered_at: null,
+    receiver_name: "",
+    receiver_phone: "",
+    receiver_address: "",
+    origin: "China",
+    destination_country: "",
+    destination_city: ""
+  });
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
-  // Label modal states
-  const [showLabelModal, setShowLabelModal] = useState(false);
-  const [labelText, setLabelText] = useState("");
-  const [isSavingLabel, setIsSavingLabel] = useState(false);
-
-  // Full quotation details state
-  const [fullQuotationDetails, setFullQuotationDetails] = useState<FullQuotationDetails | null>(null);
-  const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
+  // File upload states
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Fetch shipment data from Supabase - get user's shipments
   useEffect(() => {
     const fetchShipmentData = async () => {
       try {
-        if (!user?.id) {
-          // If no user is logged in, return empty data
-          setShipmentData([]);
-          setFilteredShipmentData([]);
-          return;
-        }
-        
-        setIsLoading(true);
+        setLoading(true);
         setError(null);
         
-        // Fetch only the current user's shipments, newest first
-        const { data: userShipments, error: shippingError } = await supabase
+        // Fetch all shipments first
+        const { data: allShipments, error: shippingError } = await supabase
           .from('shipping')
           .select('*')
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
           
         if (shippingError) {
           console.error("Error accessing shipping table:", shippingError);
           setError("Failed to load shipping data: " + shippingError.message);
-          setIsLoading(false);
+          setLoading(false);
           return;
         }
         
-        if (!userShipments || userShipments.length === 0) {
-          // No shipments found for this user
+        if (!allShipments || allShipments.length === 0) {
+          // No shipments found
           setShipmentData([]);
           setFilteredShipmentData([]);
-          setIsLoading(false);
+          setLoading(false);
           return;
         }
         
-        // Get all quotation IDs from the user's shipping records, filtering out null/undefined values
-        const quotationIds = userShipments
+        // Get all user IDs from shipments
+        type ShippingRow = {
+          id: string;
+          user_id: string | null;
+          quotation_id: string | null;
+          status: string | null;
+          location: string | null;
+          created_at: string;
+          delivered_at: string | null;
+          estimated_delivery: string | null;
+          videos_urls: string[] | null;
+          images_urls: string[] | null;
+          receiver_name?: string | null;
+          receiver_phone?: string | null;
+          receiver_address?: string | null;
+          label: string | null;
+        };
+
+        const shipmentsRows = (allShipments ?? []) as unknown as ShippingRow[];
+
+        const userIds = shipmentsRows
+          .map(item => item.user_id)
+          .filter((id): id is string => id !== null && id !== undefined);
+
+        // Fetch user information if there are any user IDs
+        let usersMap: Record<string, { full_name: string; email: string }> = {};
+        if (userIds.length > 0) {
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds);
+
+          if (userError) {
+            console.error("Error fetching user data:", userError);
+          } else if (userData) {
+            const usersRows = (userData ?? []) as unknown as Array<{ id: string; full_name: string; email: string }>
+            usersMap = usersRows.reduce((acc, user) => ({
+              ...acc,
+              [user.id]: { full_name: user.full_name, email: user.email }
+            }), {} as Record<string, { full_name: string; email: string }>);
+          }
+        }
+        
+        // Get all quotation IDs from the shipping records, filtering out null/undefined values
+        const quotationIds = shipmentsRows
           .map(item => item.quotation_id)
           .filter((id): id is string => id !== null && id !== undefined);
-        
+          
         // If there are no valid quotation IDs, we can skip fetching quotations
         if (quotationIds.length === 0) {
           // Map shipping items without quotation data
-          const combinedData = userShipments.map(shippingItem => ({
+          const combinedData = shipmentsRows.map(shippingItem => ({
             ...shippingItem,
             quotation: null
           }));
           setShipmentData(combinedData);
           setFilteredShipmentData(combinedData);
-          setIsLoading(false);
+          setLoading(false);
           return;
         }
         
-        // Fetch related quotation data using only valid IDs
+        // Fetch related quotation data using only valid IDs, including receiver information
         const { data: quotationData, error: quotationError } = await supabase
           .from('quotations')
-          .select('id, quotation_id, product_name, image_url, shipping_country, shipping_city, shipping_method')
+          .select('id, quotation_id, product_name, image_url, shipping_country, shipping_city, shipping_method, receiver_name, receiver_phone, receiver_address')
           .in('id', quotationIds);
           
         if (quotationError) {
           console.error("Error fetching quotation data:", quotationError);
           setError("Failed to load quotation details");
-          setIsLoading(false);
+          setLoading(false);
           return;
         }
         
         // Create a map of quotations by ID for easier lookup
         const quotationsMap: Record<string, QuotationData> = {};
-        if (quotationData) {
-          quotationData.forEach(quotation => {
-            quotationsMap[quotation.id] = quotation;
-          });
-        }
+        const quotationRows = (quotationData ?? []) as unknown as QuotationData[];
+        quotationRows.forEach((quotation) => {
+          quotationsMap[quotation.id] = quotation;
+        });
         
-        // Join the shipping data with quotation data
-        const combinedData = userShipments.map(shippingItem => ({
-          ...shippingItem,
-          quotation: quotationsMap[shippingItem.quotation_id] || null
-        }));
+        // Join the shipping data with quotation data and user data, including receiver information
+        const combinedData = shipmentsRows.map((shippingItem) => {
+          const qId = shippingItem.quotation_id ?? undefined
+          const uId = shippingItem.user_id ?? undefined
+          const quotation = qId ? (quotationsMap[qId] ?? null) : null
+          return {
+            ...shippingItem,
+            quotation: quotation,
+            user: uId ? (usersMap[uId] ?? null) : null,
+            // Use receiver info from quotation if available, otherwise from shipping table
+            receiver_name: quotation?.receiver_name || shippingItem.receiver_name || null,
+            receiver_phone: quotation?.receiver_phone || shippingItem.receiver_phone || null,
+            receiver_address: quotation?.receiver_address || shippingItem.receiver_address || null,
+          }
+        });
         
         setShipmentData(combinedData);
         setFilteredShipmentData(combinedData);
@@ -235,7 +269,7 @@ export default function ShipmentTrackingPage() {
         console.error("Exception in fetchShipmentData:", err);
         setError("An unexpected error occurred");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
     
@@ -316,93 +350,9 @@ export default function ShipmentTrackingPage() {
   };
 
   // View shipment details
-  const viewShipmentDetails = async (shipment: ShipmentTrackingData) => {
+  const viewShipmentDetails = (shipment: ShipmentTrackingData) => {
     setSelectedShipment(shipment);
-    setLabelText(shipment.label || "");
     setShowDetailsModal(true);
-    setFullQuotationDetails(null);
-    
-    // Fetch full quotation details from Supabase
-    if (shipment.quotation_id) {
-      setLoadingQuotationDetails(true);
-      try {
-        const { data: quotationData, error } = await supabase
-          .from('quotations')
-          .select('*')
-          .eq('id', shipment.quotation_id)
-          .single();
-        
-        if (error) {
-          console.error("Error fetching quotation details:", error);
-        } else if (quotationData) {
-          setFullQuotationDetails(quotationData);
-        }
-      } catch (error) {
-        console.error("Error fetching quotation details:", error);
-      } finally {
-        setLoadingQuotationDetails(false);
-      }
-    }
-  };
-
-  // Open label modal
-  const openLabelModal = (shipment?: ShipmentTrackingData) => {
-    const targetShipment = shipment || selectedShipment;
-    if (targetShipment) {
-      setSelectedShipment(targetShipment);
-      setLabelText(targetShipment.label || "");
-      setShowLabelModal(true);
-    }
-  };
-
-  // Save label
-  const handleSaveLabel = async () => {
-    if (!selectedShipment || !user?.id) {
-      return;
-    }
-
-    setIsSavingLabel(true);
-    try {
-      const { error } = await supabase
-        .from('shipping')
-        .update({ label: labelText.trim() || null })
-        .eq('id', selectedShipment.id);
-
-      if (error) {
-        throw error;
-      }
-
-      // Update local state
-      setShipmentData(prevData =>
-        prevData.map(shipment =>
-          shipment.id === selectedShipment.id
-            ? { ...shipment, label: labelText.trim() || null }
-            : shipment
-        )
-      );
-
-      setFilteredShipmentData(prevData =>
-        prevData.map(shipment =>
-          shipment.id === selectedShipment.id
-            ? { ...shipment, label: labelText.trim() || null }
-            : shipment
-        )
-      );
-
-      if (selectedShipment) {
-        setSelectedShipment({
-          ...selectedShipment,
-          label: labelText.trim() || null
-        });
-      }
-
-      setShowLabelModal(false);
-    } catch (err) {
-      console.error("Error saving label:", err);
-      alert("Failed to save label. Please try again.");
-    } finally {
-      setIsSavingLabel(false);
-    }
   };
 
   // Open receiver information modal
@@ -479,7 +429,7 @@ export default function ShipmentTrackingPage() {
           receiver_phone: receiverInfo.receiver_phone,
           receiver_address: receiverInfo.receiver_address,
           is_default: saveForLater, // Set is_default based on the checkbox
-        });
+        } as never);
         
       if (receiverError) {
         throw receiverError;
@@ -489,7 +439,7 @@ export default function ShipmentTrackingPage() {
       if (saveForLater && useExistingReceiver && selectedReceiverId) {
         const { error: updateError } = await supabase
           .from('shipping_receivers')
-          .update({ is_default: true })
+          .update({ is_default: true } as never)
           .eq('id', selectedReceiverId);
           
         if (updateError) {
@@ -505,7 +455,7 @@ export default function ShipmentTrackingPage() {
           receiver_name: receiverInfo.receiver_name,
           receiver_phone: receiverInfo.receiver_phone,
           receiver_address: receiverInfo.receiver_address
-        })
+        } as never)
         .eq('id', selectedShipment.id);
         
       if (updateError) {
@@ -606,8 +556,324 @@ export default function ShipmentTrackingPage() {
     }
   };
 
+  // Function to open status update modal
+  const openStatusModal = (shipment: ShipmentTrackingData) => {
+    setSelectedShipment(shipment);
+    setSelectedStatus(shipment.status || "");
+    setCustomStatus("");
+    setStatusUpdateError(null);
+    setShowStatusModal(true);
+  };
+
+  // Function to update shipment status
+  const handleStatusUpdate = async () => {
+    if (!selectedShipment) return;
+    
+    setIsUpdatingStatus(true);
+    setStatusUpdateError(null);
+    
+    const newStatus = selectedStatus === "Custom" ? customStatus : selectedStatus;
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('shipping')
+        .update({ status: newStatus } as never)
+        .eq('id', selectedShipment.id);
+        
+      if (updateError) throw updateError;
+      
+      // Update local state
+      setShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id
+            ? { ...shipment, status: newStatus }
+            : shipment
+        )
+      );
+      
+      setFilteredShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id
+            ? { ...shipment, status: newStatus }
+            : shipment
+        )
+      );
+      
+      setShowStatusModal(false);
+    } catch (err) {
+      console.error("Error updating status:", err);
+      setStatusUpdateError("Failed to update status. Please try again.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Function to start editing shipment details
+  const startEditingDetails = () => {
+    if (!selectedShipment) return;
+    
+    setEditedShipment({
+      location: selectedShipment.location || "",
+      estimated_delivery: selectedShipment.estimated_delivery || "",
+      delivered_at: selectedShipment.delivered_at,
+      receiver_name: selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name || "",
+      receiver_phone: selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone || "",
+      receiver_address: selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address || "",
+      origin: "China", // Default value
+      destination_country: selectedShipment.quotation?.shipping_country || "",
+      destination_city: selectedShipment.quotation?.shipping_city || ""
+    });
+    setIsEditingDetails(true);
+    setDetailsError(null);
+  };
+
+  // Function to handle input changes
+  const handleDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditedShipment(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Function to save shipment details
+  const handleSaveDetails = async () => {
+    if (!selectedShipment) return;
+    
+    setIsSavingDetails(true);
+    setDetailsError(null);
+    
+    try {
+      // Prepare update data - format dates properly
+      interface ShippingUpdateData {
+        location: string;
+        receiver_name: string;
+        receiver_phone: string;
+        receiver_address: string;
+        estimated_delivery?: string;
+        delivered_at?: string | null;
+      }
+      
+      const updateData: ShippingUpdateData = {
+        location: editedShipment.location,
+        receiver_name: editedShipment.receiver_name,
+        receiver_phone: editedShipment.receiver_phone,
+        receiver_address: editedShipment.receiver_address
+      };
+      
+      // Only include estimated_delivery if it has a value
+      if (editedShipment.estimated_delivery) {
+        updateData.estimated_delivery = editedShipment.estimated_delivery;
+      }
+      
+      // Only include delivered_at if it has a value
+      if (editedShipment.delivered_at) {
+        updateData.delivered_at = editedShipment.delivered_at;
+      }
+      
+      // Update shipping table
+      const { error: shippingError } = await supabase
+        .from('shipping')
+        .update(updateData as never)
+        .eq('id', selectedShipment.id);
+        
+      if (shippingError) throw shippingError;
+
+      // Only update quotations table if quotation_id exists
+      if (selectedShipment.quotation_id) {
+        const { error: quotationError } = await supabase
+          .from('quotations')
+          .update({
+            shipping_country: editedShipment.destination_country,
+            shipping_city: editedShipment.destination_city
+          } as never)
+          .eq('id', selectedShipment.quotation_id);
+          
+        if (quotationError) {
+          console.error("Error updating quotation:", quotationError);
+          // Continue with the rest of the function, even if quotation update fails
+        }
+      }
+      
+      // Update local state
+      const updatedShipment = {
+        ...selectedShipment,
+        location: editedShipment.location,
+        estimated_delivery: editedShipment.estimated_delivery,
+        delivered_at: editedShipment.delivered_at,
+        receiver_name: editedShipment.receiver_name,
+        receiver_phone: editedShipment.receiver_phone,
+        receiver_address: editedShipment.receiver_address,
+        quotation: selectedShipment.quotation ? {
+          ...selectedShipment.quotation,
+          shipping_country: editedShipment.destination_country,
+          shipping_city: editedShipment.destination_city
+        } : null
+      };
+      
+      setShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id ? updatedShipment : shipment
+        )
+      );
+      
+      setFilteredShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id ? updatedShipment : shipment
+        )
+      );
+      
+      setSelectedShipment(updatedShipment);
+      setIsEditingDetails(false);
+    } catch (err) {
+      console.error("Error updating shipment details:", err);
+      setDetailsError("Failed to update shipment details. Please try again.");
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
+  // Function to handle file uploads
+  const handleFileUpload = async (files: FileList, type: 'images' | 'videos') => {
+    if (!selectedShipment) {
+      setUploadError("Please select a shipment first");
+      return;
+    }
+
+    if (files.length === 0) {
+      setUploadError("Please select files to upload");
+      return;
+    }
+    
+    setUploadingFiles(true);
+    setUploadError(null);
+    setUploadProgress(0);
+    
+    try {
+      const uploadedUrls: string[] = [];
+      const totalFiles = files.length;
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`File ${file.name} is too large. Maximum size is 10MB`);
+        }
+
+        // Validate file type
+        if (type === 'images' && !file.type.match(/^image\/(jpeg|png|gif|webp)$/)) {
+          throw new Error(`File ${file.name} is not a supported image type. Supported types: JPEG, PNG, GIF, WEBP`);
+        }
+        if (type === 'videos' && !file.type.match(/^video\/(mp4|webm|quicktime)$/)) {
+          throw new Error(`File ${file.name} is not a supported video type. Supported types: MP4, WebM, QuickTime`);
+        }
+
+        const fileExt = file.name.split('.').pop()?.toLowerCase();
+        // Create a more structured file path that doesn't use type as a folder name
+        const fileName = `shipment-${selectedShipment.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        // Upload the file to shipment_updates bucket
+        const { error: uploadError, data } = await supabase.storage
+          .from('shipment_updates')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (uploadError) {
+          if (uploadError.message.includes('storage/bucket-not-found')) {
+            throw new Error('Storage bucket not found. Please contact your administrator.');
+          }
+          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        }
+        
+        if (!data?.path) {
+          throw new Error(`Failed to get upload path for ${file.name}`);
+        }
+
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('shipment_updates')
+          .getPublicUrl(data.path);
+            
+        if (!publicUrl) {
+          throw new Error(`Failed to get public URL for ${file.name}`);
+        }
+
+        uploadedUrls.push(publicUrl);
+        
+        // Update progress
+        const progress = ((i + 1) / totalFiles) * 100;
+        setUploadProgress(progress);
+      }
+      
+      if (uploadedUrls.length === 0) {
+        throw new Error("No files were uploaded successfully");
+      }
+
+      // Update the shipping record with new URLs
+      const existingUrls = type === 'images' 
+        ? (selectedShipment.images_urls || [])
+        : (selectedShipment.videos_urls || []);
+      
+      const { error: updateError } = await supabase
+        .from('shipping')
+        .update({
+          [`${type}_urls`]: [...existingUrls, ...uploadedUrls]
+        } as never)
+        .eq('id', selectedShipment.id);
+        
+      if (updateError) {
+        throw new Error(`Failed to update shipping record: ${updateError.message}`);
+      }
+      
+      // Update local state
+      const updatedShipment = {
+        ...selectedShipment,
+        [`${type}_urls`]: [...existingUrls, ...uploadedUrls]
+      };
+      
+      setSelectedShipment(updatedShipment);
+      setShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id ? updatedShipment : shipment
+        )
+      );
+      
+      setFilteredShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id ? updatedShipment : shipment
+        )
+      );
+      
+    } catch (err) {
+      console.error("Error uploading files:", err);
+      setUploadError(err instanceof Error ? err.message : "Failed to upload files. Please try again.");
+    } finally {
+      setUploadingFiles(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Function to handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'images' | 'videos') => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files, type);
+    }
+  };
+
+  // Function to trigger file input click
+  const triggerFileInput = (inputId: string) => {
+    const fileInput = document.getElementById(inputId) as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
   return (
-    <div className="grid grid-cols-12 gap-4 md:gap-6">
+    <div className="grid grid-cols-12 gap-4 md:gap-6 min-h-screen overflow-y-auto">
       {/* Page Header Section */}
       <div className="col-span-12">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -621,690 +887,457 @@ export default function ShipmentTrackingPage() {
       <Modal 
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
-        showCloseButton={false}
-        className="max-w-3xl mx-4 md:mx-auto"
+        className="max-w-3xl p-8 mx-4 md:mx-auto max-h-[90vh] overflow-y-auto"
       >
         {selectedShipment && selectedShipment.quotation && (
-          <div className="flex flex-col h-full max-h-[85vh]">
-            {/* Fixed Header */}
-            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+          <>
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Shipment Details</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Tracking Number: <span className="font-medium text-gray-900 dark:text-white">{selectedShipment.quotation.quotation_id || "N/A"}</span>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Shipment Details</h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Tracking Number: {selectedShipment.quotation.quotation_id || "N/A"}
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  <span className="font-medium">Label:</span> {selectedShipment.label || "Not assigned"}
                 </p>
               </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="ml-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-700 active:scale-95 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-white"
-                aria-label="Close modal"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="stroke-current"
-                >
-                  <path
-                    d="M18 6L6 18M6 6L18 18"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
             </div>
             
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 min-h-0">
-              {/* Product Information Card */}
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-5 mb-6 border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="relative h-56 w-full overflow-hidden rounded-xl mb-4 border-2 border-gray-200 dark:border-gray-700 shadow-md">
-                      <Image
-                        src={selectedShipment.quotation.image_url || defaultProductImage}
-                        alt={selectedShipment.quotation.product_name || "Product"}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{selectedShipment.quotation.product_name || "Product"}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Order ID: <span className="font-medium text-gray-900 dark:text-white">{selectedShipment.quotation.quotation_id || "N/A"}</span>
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Status</p>
-                      <div>
-                        <Badge color={getStatusBadgeColor(selectedShipment.status)} size="sm">
-                          {selectedShipment.status || "Not Available"}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Timeline</p>
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(selectedShipment.created_at)}</p>
-                        </div>
-                        {selectedShipment.status?.toLowerCase() === "delivered" ? (
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Delivered</p>
-                            <p className="text-sm font-medium text-green-600 dark:text-green-400">{formatDate(selectedShipment.delivered_at)}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Estimated Delivery</p>
-                            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{formatDate(selectedShipment.estimated_delivery)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <div className="relative h-48 w-full overflow-hidden rounded-lg mb-4">
+                  <Image
+                    src={selectedShipment.quotation.image_url || defaultProductImage}
+                    alt={selectedShipment.quotation.product_name || "Product"}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{selectedShipment.quotation.product_name || "Product"}</h3>
+                <p className="text-gray-500 dark:text-gray-400">Order ID: {selectedShipment.quotation.quotation_id || "N/A"}</p>
               </div>
               
-              {/* Location Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                {/* Origin Card */}
-                <div className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-200">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-[#1E88E5]"></div>
-                  <div className="relative p-5 pl-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <svg className="w-5 h-5 text-[#1E88E5] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Origin</div>
-                    </div>
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">China</div>
+              <div className="space-y-4">
+                <div className="border-b pb-2 border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                  <div className="mt-1">
+                    <Badge color={getStatusBadgeColor(selectedShipment.status || '')} size="sm">
+                      {selectedShipment.status || "Not Available"}
+                    </Badge>
                   </div>
                 </div>
-
-                {/* Current Location Card */}
-                <div className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-200">
-                  <div className={`absolute top-0 left-0 w-1 h-full ${
-                    selectedShipment.location 
-                      ? 'bg-[#1E88E5]'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                  }`}></div>
-                  <div className="relative p-5 pl-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`p-2 rounded-lg ${
-                        selectedShipment.location 
-                          ? 'bg-gray-100 dark:bg-gray-700'
-                          : 'bg-gray-50 dark:bg-gray-700/50'
-                      }`}>
-                        <svg className={`w-5 h-5 ${
-                          selectedShipment.location 
-                            ? 'text-[#1E88E5] dark:text-blue-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                        }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                      </div>
-                      <div className={`text-xs font-semibold uppercase tracking-wider ${
-                        selectedShipment.location 
-                          ? 'text-gray-500 dark:text-gray-400'
-                          : 'text-gray-400 dark:text-gray-500'
-                      }`}>Current Location</div>
-                    </div>
-                    <div className={`text-lg font-bold mb-1 ${
-                      selectedShipment.location
-                        ? 'text-gray-900 dark:text-white'
-                        : 'text-gray-400 dark:text-gray-500'
-                    }`}>{selectedShipment.location || "Not updated"}</div>
-                    <div className={`text-xs font-medium ${
-                      selectedShipment.location 
-                        ? 'text-[#1E88E5] dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
-                    }`}>
-                      {selectedShipment.location ? "In Transit" : "Waiting for update"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Destination Card */}
-                <div className="group relative overflow-hidden bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-200">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-[#1E88E5]"></div>
-                  <div className="relative p-5 pl-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <svg className="w-5 h-5 text-[#1E88E5] dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Destination</div>
-                    </div>
-                    <div className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-                      {selectedShipment.quotation.shipping_country || "Not specified"}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {selectedShipment.quotation.shipping_city || "Not specified"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Receiver Information Section */}
-              {selectedShipment.receiver_name && (
-                <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Receiver Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Name</p>
-                      <p className="text-base font-semibold text-gray-900 dark:text-white">{selectedShipment.receiver_name}</p>
-                    </div>
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone Number</p>
-                      <p className="text-base font-semibold text-gray-900 dark:text-white">{selectedShipment.receiver_phone}</p>
-                    </div>
-                    <div className="md:col-span-2 bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Delivery Address</p>
-                      <p className="text-base font-medium text-gray-900 dark:text-white whitespace-pre-line">{selectedShipment.receiver_address}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Carton Section */}
-              <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                    Carton
-                  </h3>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
-                    onClick={openLabelModal}
-                  >
-                    Label
-                  </Button>
-                </div>
-                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  {selectedShipment.label ? (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Label</p>
-                      <p className="text-base font-medium text-gray-900 dark:text-white">{selectedShipment.label}</p>
-                    </div>
+                
+                <div className="border-b pb-2 border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Dates</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Created:</span> {formatDate(selectedShipment.created_at)}
+                  </p>
+                  {selectedShipment.status?.toLowerCase() === "delivered" ? (
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">Delivered:</span> {formatDate(selectedShipment.delivered_at)}
+                    </p>
                   ) : (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">No label added yet</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click the Label button to add one</p>
-                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">Estimated Delivery:</span> {formatDate(selectedShipment.estimated_delivery)}
+                    </p>
                   )}
                 </div>
               </div>
-
-              {/* Image Gallery Section - Show if images are available */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Shipment Images
-                </h3>
-                {selectedShipment.images_urls && selectedShipment.images_urls.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {selectedShipment.images_urls.map((url, idx) => {
-                      const isValid = isValidUrl(url);
-                      const imageUrl = isValid ? validateImageUrl(url) : imagePlaceholder;
-                      
-                      return (
-                        <div 
-                          key={idx} 
-                          className="relative h-40 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                          onClick={() => {
-                            setSelectedImage(imageUrl);
-                            setImageModalOpen(true);
-                          }}
-                        >
-                          <Image
-                            src={imageUrl}
-                            alt={`Shipment image ${idx + 1}`}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-200"
-                          />
-                          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                            </svg>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 dark:text-gray-400 py-12 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-sm font-medium">No images available</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Image Modal for Zooming */}
-              {imageModalOpen && (
-                <div className="fixed inset-0 z-[9999] bg-black/90 dark:bg-black/95 flex items-center justify-center" onClick={() => setImageModalOpen(false)}>
-                  <button className="absolute right-3 top-3 z-[10000] flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-6 sm:top-6 sm:h-11 sm:w-11" onClick={(e) => {
-                    e.stopPropagation();
-                    setImageModalOpen(false);
-                  }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M6.04289 16.5413C5.65237 16.9318 5.65237 17.565 6.04289 17.9555C6.43342 18.346 7.06658 18.346 7.45711 17.9555L11.9987 13.4139L16.5408 17.956C16.9313 18.3466 17.5645 18.3466 17.955 17.956C18.3455 17.5655 18.3455 16.9323 17.955 16.5418L13.4129 11.9997L17.955 7.4576C18.3455 7.06707 18.3455 6.43391 17.955 6.04338C17.5645 5.65286 16.9313 5.65286 16.5408 6.04338L11.9987 10.5855L6.04289 16.5413Z" fill="currentColor"></path>
-                    </svg>
-                  </button>
-                  
-                  <div className="relative w-[90vw] h-[90vh] max-w-7xl max-h-[90vh] p-4" onClick={(e) => e.stopPropagation()}>
-                    <Image
-                      src={selectedImage}
-                      alt="Shipment image"
-                      fill
-                      className="object-contain"
-                      sizes="90vw"
-                    />
-                  </div>
-                  
-                  <div className="absolute bottom-4 right-4 flex space-x-3">
-                    <button 
-                      className="bg-blue-500 text-white rounded-full p-3 shadow-lg hover:bg-blue-600 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(selectedImage, '_blank');
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </button>
-                    <button 
-                      className="bg-blue-500 text-white rounded-full p-3 shadow-lg hover:bg-blue-600 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const link = document.createElement('a');
-                        link.href = selectedImage;
-                        link.download = 'shipment-image.jpg';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Video Gallery Section - Show if videos are available */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Shipment Videos
-                </h3>
-                {selectedShipment.videos_urls && selectedShipment.videos_urls.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedShipment.videos_urls.map((url, idx) => {
-                      const isValid = isValidUrl(url);
-                      const videoUrl = isValid ? validateImageUrl(url) : "";
-                      
-                      if (!isValid) return null;
-                      
-                      return (
-                        <div key={idx} className="rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow">
-                          <video 
-                            controls
-                            className="w-full h-auto"
-                            preload="metadata"
-                          >
-                            <source src={videoUrl} type="video/mp4" />
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 dark:text-gray-400 py-12 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-sm font-medium">No videos available</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Full Quotation Details Section */}
-              {loadingQuotationDetails ? (
-                <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 text-center">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600 dark:text-gray-400">Loading quotation details...</p>
-                </div>
-              ) : fullQuotationDetails ? (
-                <div className="mb-6 space-y-6">
-                  {/* Complete Quotation Information */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-blue-200 dark:border-gray-700">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Complete Quotation Details
-                    </h3>
-
-                    {/* Product Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Product Name</p>
-                        <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.product_name || "N/A"}</p>
-                      </div>
-                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Quantity</p>
-                        <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.quantity || "N/A"}</p>
-                      </div>
-                      {fullQuotationDetails.product_url && (
-                        <div className="md:col-span-2 bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Product URL</p>
-                          <a href={fullQuotationDetails.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all">
-                            {fullQuotationDetails.product_url}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Shipping Information */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                        Shipping Information
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Country</p>
-                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_country || "N/A"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">City</p>
-                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_city || "N/A"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Method</p>
-                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_method || "N/A"}</p>
-                        </div>
-                        {fullQuotationDetails.service_type && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Service Type</p>
-                            <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.service_type}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Receiver Address from Quotation */}
-                    {(fullQuotationDetails.receiver_name || fullQuotationDetails.receiver_phone || fullQuotationDetails.receiver_address) && (
-                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
-                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          Receiver Address (from Quotation)
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {fullQuotationDetails.receiver_name && (
-                            <div>
-                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Name</p>
-                              <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.receiver_name}</p>
-                            </div>
-                          )}
-                          {fullQuotationDetails.receiver_phone && (
-                            <div>
-                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</p>
-                              <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.receiver_phone}</p>
-                            </div>
-                          )}
-                          {fullQuotationDetails.receiver_address && (
-                            <div className="md:col-span-2">
-                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Address</p>
-                              <p className="text-base font-medium text-gray-900 dark:text-white whitespace-pre-line">{fullQuotationDetails.receiver_address}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Pricing Options */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Pricing Options
-                      </h4>
-                      <div className="space-y-4">
-                        {[1, 2, 3].map((optionNum) => {
-                          const title = fullQuotationDetails[`title_option${optionNum}`];
-                          const totalPrice = fullQuotationDetails[`total_price_option${optionNum}`];
-                          const unitPrice = fullQuotationDetails[`unit_price_option${optionNum}`];
-                          const deliveryTime = fullQuotationDetails[`delivery_time_option${optionNum}`];
-                          const description = fullQuotationDetails[`description_option${optionNum}`];
-                          const priceDescription = fullQuotationDetails[`price_description_option${optionNum}`];
-                          const isSelected = fullQuotationDetails.selected_option === optionNum;
-
-                          if (!title && !totalPrice) return null;
-
-                          const titleStr = typeof title === 'string' ? title : String(title || 'N/A');
-
-                          return (
-                            <div
-                              key={optionNum}
-                              className={`rounded-lg p-4 border-2 ${
-                                isSelected
-                                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400"
-                                  : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-3">
-                                <h5 className="text-base font-bold text-gray-900 dark:text-white">
-                                  Option {optionNum}: {titleStr}
-                                </h5>
-                                {isSelected && (
-                                  <Badge color="primary" size="sm">Selected</Badge>
-                                )}
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {totalPrice ? (
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Price</p>
-                                    <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(totalPrice).toFixed(2)}</p>
-                                  </div>
-                                ) : null}
-                                {unitPrice ? (
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Price</p>
-                                    <p className="text-base font-semibold text-gray-900 dark:text-white">${Number(unitPrice).toFixed(2)}</p>
-                                  </div>
-                                ) : null}
-                                {deliveryTime ? (
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Delivery Time</p>
-                                    <p className="text-base font-medium text-gray-900 dark:text-white">{String(deliveryTime)}</p>
-                                  </div>
-                                ) : null}
-                                {fullQuotationDetails[`unit_weight_option${optionNum}`] ? (
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Weight</p>
-                                    <p className="text-base font-medium text-gray-900 dark:text-white">{String(fullQuotationDetails[`unit_weight_option${optionNum}`])}g</p>
-                                  </div>
-                                ) : null}
-                              </div>
-                              {description ? (
-                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300">{String(description)}</p>
-                                </div>
-                              ) : null}
-                              {priceDescription ? (
-                                <div className="mt-2">
-                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Price Description</p>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300">{String(priceDescription)}</p>
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {fullQuotationDetails.Quotation_fees && (
-                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex justify-between items-center">
-                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Quotation Fees</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(fullQuotationDetails.Quotation_fees).toFixed(2)}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Additional Information */}
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Additional Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-500 dark:text-gray-400 mb-1">Quotation ID</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{fullQuotationDetails.quotation_id || "N/A"}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500 dark:text-gray-400 mb-1">Status</p>
-                          <Badge color={getStatusBadgeColor(fullQuotationDetails.status)} size="sm">
-                            {fullQuotationDetails.status || "N/A"}
-                          </Badge>
-                        </div>
-                        <div>
-                          <p className="text-gray-500 dark:text-gray-400 mb-1">Created At</p>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {fullQuotationDetails.created_at ? new Date(fullQuotationDetails.created_at).toLocaleString() : "N/A"}
-                          </p>
-                        </div>
-                        {fullQuotationDetails.updated_at && (
-                          <div>
-                            <p className="text-gray-500 dark:text-gray-400 mb-1">Updated At</p>
-                            <p className="font-medium text-gray-900 dark:text-white">
-                              {new Date(fullQuotationDetails.updated_at).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              
             </div>
             
-            {/* Fixed Footer */}
-            <div className="flex justify-end p-5 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 font-medium shadow-sm hover:shadow-md"
-              >
-                Close
-              </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 border border-gray-100 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800">
+                <div className="text-gray-500 text-sm mb-1 dark:text-gray-400">Origin</div>
+                {isEditingDetails ? (
+                  <input
+                    type="text"
+                    name="origin"
+                    value={editedShipment.origin}
+                    onChange={handleDetailsChange}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    disabled={isSavingDetails}
+                  />
+                ) : (
+                  <>
+                <div className="font-medium text-[#0D47A1] dark:text-blue-400">China</div>
+                <div className="text-gray-700 dark:text-gray-300">Shipping Port</div>
+                  </>
+                )}
+              </div>
+              <div className="p-4 border border-gray-100 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800">
+                <div className="text-gray-500 text-sm mb-1 dark:text-gray-400">Current Location</div>
+                {isEditingDetails ? (
+                  <input
+                    type="text"
+                    name="location"
+                    value={editedShipment.location}
+                    onChange={handleDetailsChange}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="Enter current location"
+                    disabled={isSavingDetails}
+                  />
+                ) : (
+                  <>
+                <div className="font-medium text-[#ffb300] dark:text-yellow-400">{selectedShipment.location || "Not updated"}</div>
+                <div className="text-gray-700 dark:text-gray-300">{selectedShipment.location ? "In Transit" : "Waiting for update"}</div>
+                  </>
+                )}
+              </div>
+              <div className="p-4 border border-gray-100 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800">
+                <div className="text-gray-500 text-sm mb-1 dark:text-gray-400">Destination</div>
+                {isEditingDetails ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      name="destination_country"
+                      value={editedShipment.destination_country}
+                      onChange={handleDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="Country"
+                      disabled={isSavingDetails}
+                    />
+                    <input
+                      type="text"
+                      name="destination_city"
+                      value={editedShipment.destination_city}
+                      onChange={handleDetailsChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="City"
+                      disabled={isSavingDetails}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-medium text-[#43a047] dark:text-green-400">{selectedShipment.quotation?.shipping_country || "Not specified"}</div>
+                    <div className="text-gray-700 dark:text-gray-300">{selectedShipment.quotation?.shipping_city || "Not specified"}</div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
 
-      {/* Label Modal */}
-      <Modal 
-        isOpen={showLabelModal}
-        onClose={() => !isSavingLabel && setShowLabelModal(false)}
-        className="max-w-md p-6 mx-4 md:mx-auto custom-scrollbar"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add Label</h3>
-          <button 
-            onClick={() => !isSavingLabel && setShowLabelModal(false)}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            disabled={isSavingLabel}
-          >
-          </button>
-        </div>
-        
-        <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Add a label for this carton to help identify it.
-        </p>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Label Text
-            </label>
-            <input
-              type="text"
-              value={labelText}
-              onChange={(e) => setLabelText(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              placeholder="Enter label text"
-              disabled={isSavingLabel}
-            />
-          </div>
-          
-          <div className="flex justify-end gap-3">
-            <Button
-              onClick={() => !isSavingLabel && setShowLabelModal(false)}
-              variant="outline"
-              type="button"
-              disabled={isSavingLabel}
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              type="button"
-              onClick={handleSaveLabel}
-              disabled={isSavingLabel}
-              className={isSavingLabel ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
-            >
-              {isSavingLabel ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Saving...
-                </>
-              ) : (
-                "Save Label"
+            {/* Dates Section */}
+            <div className="mt-6 p-4 border border-gray-100 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">Dates</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {isEditingDetails ? (
+                  <>
+                    <div>
+                      <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Estimated Delivery Date</label>
+                      <input
+                        type="date"
+                        name="estimated_delivery"
+                        value={editedShipment.estimated_delivery || ""}
+                        onChange={handleDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        disabled={isSavingDetails}
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional: Leave empty if not available</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Delivered Date</label>
+                      <input
+                        type="date"
+                        name="delivered_at"
+                        value={editedShipment.delivered_at || ""}
+                        onChange={handleDetailsChange}
+                        className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        disabled={isSavingDetails}
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional: Set only if delivered</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Created</p>
+                      <p className="font-medium text-gray-800 dark:text-white">{formatDate(selectedShipment.created_at)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {selectedShipment.status?.toLowerCase() === "delivered" ? "Delivered" : "Estimated Delivery"}
+                      </p>
+                      <p className="font-medium text-gray-800 dark:text-white">
+                        {selectedShipment.status?.toLowerCase() === "delivered"
+                          ? formatDate(selectedShipment.delivered_at)
+                          : formatDate(selectedShipment.estimated_delivery)}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Image Gallery Section */}
+              <div className="mt-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Shipment Images</h3>
+                <div>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFileInputChange(e, 'images')}
+                    disabled={uploadingFiles}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={uploadingFiles}
+                    onClick={() => triggerFileInput('image-upload')}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    {uploadingFiles ? 'Uploading...' : 'Upload Images'}
+                  </Button>
+                </div>
+              </div>
+              
+              {selectedShipment.images_urls && selectedShipment.images_urls.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {selectedShipment.images_urls.map((url, idx) => {
+                    const isValid = isValidUrl(url);
+                    const imageUrl = isValid ? validateImageUrl(url) : imagePlaceholder;
+                    
+                    return (
+                      <div key={idx} className="relative h-32 rounded-lg overflow-hidden group">
+                        <Image
+                          src={imageUrl}
+                          alt={`Shipment image ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                  {uploadingFiles ? "Uploading images..." : "No images available"}
+              </div>
+            )}
+            </div>
+
+            {/* Receiver Information Section - Enhanced to match payment page style */}
+            {(selectedShipment.receiver_name || selectedShipment.receiver_phone || selectedShipment.receiver_address || selectedShipment.quotation?.receiver_name || selectedShipment.quotation?.receiver_phone || selectedShipment.quotation?.receiver_address) && (
+              <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 border dark:border-purple-800 rounded-lg p-6 md:p-8 border-[var(--color-amber-50)]">
+                <div className="flex justify-between items-center mb-6">
+                  <h4 className="font-semibold dark:text-purple-100 text-[var(--color-black)]">Receiver Information</h4>
+                  {!isEditingDetails && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={startEditingDetails}
+                      className="border-purple-300 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/40 text-[var(--color-black)]"
+                    >
+                      Edit Details
+                    </Button>
+                  )}
+                </div>
+                
+                {isEditingDetails ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Name</label>
+                      <input
+                        type="text"
+                        name="receiver_name"
+                        value={editedShipment.receiver_name}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's name"
+                        disabled={isSavingDetails}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Phone Number</label>
+                      <input
+                        type="text"
+                        name="receiver_phone"
+                        value={editedShipment.receiver_phone}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's phone"
+                        disabled={isSavingDetails}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Address</label>
+                      <textarea
+                        name="receiver_address"
+                        value={editedShipment.receiver_address}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's address"
+                        rows={3}
+                        disabled={isSavingDetails}
+                      ></textarea>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-sm">
+                    {(selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name) && (
+                      <div className="flex justify-between items-start gap-4 py-1">
+                        <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Name:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1 text-[var(--color-black)]">
+                          {selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone) && (
+                      <div className="flex justify-between items-start gap-4 py-1">
+                        <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Phone:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1 text-[var(--color-black)]">
+                          {selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address) && (
+                      <div className="pt-1">
+                        <div className="mb-2">
+                          <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Address:</span>
+                        </div>
+                        <p className="dark:text-purple-100 whitespace-pre-line leading-relaxed text-[var(--color-black)]">
+                          {selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address || 'N/A'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {detailsError && (
+                  <div className="mt-4 text-sm text-red-600 dark:text-red-400">
+                    {detailsError}
+                  </div>
+                )}
+
+                {isEditingDetails && (
+                  <div className="mt-6 flex justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingDetails(false)}
+                      disabled={isSavingDetails}
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveDetails}
+                      disabled={isSavingDetails}
+                      className={isSavingDetails ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+                    >
+                      {isSavingDetails ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                </div>
               )}
-            </Button>
-          </div>
-        </div>
+              </div>
+            )}
+
+            {/* Label in Carton Section */}
+            <div className="mt-6 p-4 border border-gray-100 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+              <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white">Label in Carton</h3>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-md">
+                <p className="text-gray-800 dark:text-gray-200 font-medium">
+                  {selectedShipment.label || "Not assigned"}
+                </p>
+              </div>
+            </div>
+
+            {/* Video Gallery Section */}
+              <div className="mt-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Shipment Videos</h3>
+                <div>
+                  <input
+                    id="video-upload"
+                    type="file"
+                    multiple
+                    accept="video/*"
+                    className="hidden"
+                    onChange={(e) => handleFileInputChange(e, 'videos')}
+                    disabled={uploadingFiles}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={uploadingFiles}
+                    onClick={() => triggerFileInput('video-upload')}
+                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    {uploadingFiles ? 'Uploading...' : 'Upload Videos'}
+                  </Button>
+                </div>
+              </div>
+              
+              {selectedShipment.videos_urls && selectedShipment.videos_urls.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedShipment.videos_urls.map((url, idx) => {
+                    const isValid = isValidUrl(url);
+                    const videoUrl = isValid ? validateImageUrl(url) : "";
+                    
+                    if (!isValid) return null;
+                    
+                    return (
+                      <div key={idx} className="rounded-lg overflow-hidden">
+                        <video 
+                          controls
+                          className="w-full h-auto"
+                          preload="metadata"
+                        >
+                          <source src={videoUrl} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                  {uploadingFiles ? "Uploading videos..." : "No videos available"}
+                </div>
+              )}
+            </div>
+
+            {/* Upload Progress and Error Messages */}
+            {(uploadingFiles || uploadError) && (
+              <div className="mt-4">
+                {uploadingFiles && (
+                  <div className="flex flex-col gap-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                      <div 
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                      Uploading... {Math.round(uploadProgress)}%
+                    </p>
+                  </div>
+                )}
+                {uploadError && (
+                  <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/10 rounded-md">
+                    <p className="text-sm text-red-600 dark:text-red-400">{uploadError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </Modal>
 
       {/* Receiver Information Modal */}
       <Modal 
         isOpen={showReceiverModal}
         onClose={() => !isSubmitting && setShowReceiverModal(false)}
-        className="max-w-md p-6 mx-4 md:mx-auto custom-scrollbar"
+        className="max-w-md p-6 mx-4 md:mx-auto"
       >
         {submissionSuccess ? (
           <div className="text-center py-4">
@@ -1327,6 +1360,9 @@ export default function ShipmentTrackingPage() {
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 disabled={isSubmitting}
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             
@@ -1464,11 +1500,106 @@ export default function ShipmentTrackingPage() {
         )}
       </Modal>
 
+      {/* Status Update Modal */}
+      <Modal 
+        isOpen={showStatusModal}
+        onClose={() => !isUpdatingStatus && setShowStatusModal(false)}
+        className="max-w-md p-6 mx-4 md:mx-auto"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Update Status</h3>
+          <button 
+            onClick={() => !isUpdatingStatus && setShowStatusModal(false)}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            disabled={isUpdatingStatus}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Select Status
+            </label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                if (e.target.value !== "Custom") {
+                  setCustomStatus("");
+                }
+              }}
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              disabled={isUpdatingStatus}
+            >
+              <option value="">Select a status</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedStatus === "Custom" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Custom Status
+              </label>
+              <input
+                type="text"
+                value={customStatus}
+                onChange={(e) => setCustomStatus(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="Enter custom status"
+                disabled={isUpdatingStatus}
+              />
+            </div>
+          )}
+
+          {statusUpdateError && (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {statusUpdateError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={() => !isUpdatingStatus && setShowStatusModal(false)}
+              variant="outline"
+              type="button"
+              disabled={isUpdatingStatus}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleStatusUpdate}
+              disabled={isUpdatingStatus || (!customStatus && selectedStatus === "Custom")}
+              className={isUpdatingStatus ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+            >
+              {isUpdatingStatus ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Updating...
+                </>
+              ) : (
+                "Update Status"
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Main Table Section */}
       <div className="col-span-12">
         <div className="rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
           <div className="flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
-            <h3 className="font-semibold text-[#0D47A1] text-base dark:text-white/90">
+            <h3 className="font-semibold text-[#0D47A1] dark:text-blue-400 text-base">
               Your Shipment Status
             </h3>
             <div className="flex flex-wrap items-center gap-3">
@@ -1478,10 +1609,10 @@ export default function ShipmentTrackingPage() {
                   value={searchQuery}
                   onChange={handleSearch}
                   placeholder="Search by tracking #, order #, or product..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] w-64 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] w-64 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-400"
                 />
                 <svg
-                  className="absolute left-3 top-2.5 text-gray-400"
+                  className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500"
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
@@ -1507,9 +1638,9 @@ export default function ShipmentTrackingPage() {
             </div>
           </div>
 
-          {isLoading ? (
+          {loading ? (
             <div className="p-6 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#1E88E5] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#1E88E5] border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite] dark:border-blue-400"></div>
               <p className="mt-2 text-gray-600 dark:text-gray-400">Loading your shipment data...</p>
             </div>
           ) : error ? (
@@ -1582,7 +1713,7 @@ export default function ShipmentTrackingPage() {
                     {filteredShipmentData.map((shipment) => (
                     <TableRow
                         key={shipment.id}
-                      className="transition-all duration-300 hover:bg-[#E3F2FD] dark:hover:bg-gray-700/50 hover:shadow-md cursor-pointer"
+                      className="transition-all duration-300 hover:bg-[#E3F2FD] dark:hover:bg-blue-900/20 hover:shadow-md cursor-pointer"
                     >
                       <TableCell className="px-5 py-3 text-sm text-gray-700 dark:text-gray-300">
                           {shipment.quotation?.quotation_id || "N/A"}
@@ -1615,9 +1746,21 @@ export default function ShipmentTrackingPage() {
                         </div>
                       </TableCell>
                       <TableCell className="px-5 py-3 text-sm">
-                        <Badge color={getStatusBadgeColor(shipment.status)} size="sm">
+                        <div className="flex items-center gap-2">
+                        <Badge color={getStatusBadgeColor(shipment.status || '')} size="sm">
                             {shipment.status || "Not Available"}
                         </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                            onClick={() => {
+                              openStatusModal(shipment);
+                            }}
+                          >
+                            Update
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="px-5 py-3 text-sm">
                         <div className="flex flex-col">
@@ -1634,19 +1777,10 @@ export default function ShipmentTrackingPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                            className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
                             onClick={() => viewShipmentDetails(shipment)}
                           >
                             View Details
-                          </Button>
-                          
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
-                            onClick={() => openLabelModal(shipment)}
-                          >
-                            Label
                           </Button>
                           
                           {/* Add "Provide Shipping Info" button for shipments with "Waiting" status */}
@@ -1654,7 +1788,7 @@ export default function ShipmentTrackingPage() {
                             <Button
                               size="sm"
                               variant="primary"
-                              className="bg-[#1E88E5] hover:bg-[#0D47A1]"
+                              className="bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
                               onClick={() => openReceiverModal(shipment)}
                             >
                               Provide Info

@@ -94,14 +94,14 @@ export default function UserInfoCard() {
             
             const { error: insertError } = await supabase
               .from('profiles')
-              .insert([testData]);
+              .insert([testData] as never);
               
             console.log("Insert test result:", { success: !insertError, error: insertError });
           } else {
             // Try a small update
             const { error: updateError } = await supabase
               .from('profiles')
-              .update({ updated_at: new Date().toISOString() })
+              .update({ updated_at: new Date().toISOString() } as never)
               .eq('id', user.id);
               
             console.log("Update test result:", { success: !updateError, error: updateError });
@@ -124,7 +124,7 @@ export default function UserInfoCard() {
       
       setLoadingProfile(true);
       try {
-        const { data, error } = await supabase
+        const { data: profileRow, error } = await supabase
           .from('profiles')
           .select('*') // Select all fields
           .eq('id', user.id)
@@ -169,7 +169,8 @@ export default function UserInfoCard() {
             // Some other error occurred
             setProfileData(null);
           }
-        } else if (data) {
+        } else if (profileRow) {
+          const data = profileRow as unknown as ProfileData;
           console.log("Profile fetched successfully:", data);
           
           // Update form data with profile data
@@ -274,6 +275,7 @@ export default function UserInfoCard() {
       setLoadingProfile(false);
       setInitialSetup(false);
       customToast({
+        variant: "default",
         title: "Profile Updated",
         description: "Your profile information has been updated successfully.",
       });
@@ -332,7 +334,7 @@ export default function UserInfoCard() {
             ...newData, 
             id: user.id,
             created_at: new Date().toISOString() 
-          }])
+          }] as never)
           .select('*');
           
         setInitialSetup(false); // No longer initial setup
@@ -341,7 +343,7 @@ export default function UserInfoCard() {
         console.log("Updating existing profile in Supabase...");
         result = await supabase
           .from('profiles')
-          .update(newData)
+          .update(newData as never)
           .eq('id', user.id)
           .select('*');
       }

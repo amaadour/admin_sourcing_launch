@@ -49,6 +49,11 @@ const navItems: NavItem[] = [
     name: "Profile",
     path: "/profile",
   },
+  {
+    icon: <UserCircleIcon />,
+    name: "User Profiles",
+    path: "/user-profiles",
+  },
 ];
 
 // Empty othersItems array
@@ -264,42 +269,37 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex items-center ${
+        className={`py-8 flex  ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        {!isMobileOpen && (
-          <Link href="/dashboard-home" className="bg-white dark:bg-white rounded-lg p-2 shadow-sm flex items-center">
+        <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
-              <div className="flex items-center">
-                <Image
-                  className="dark:hidden"
-                  src="/images/logo/Logo2.png"
-                  alt="Logo"
-                  width={250}
-                  height={15}
-                />
-                <Image
-                  className="hidden dark:block"
-                  src="/images/logo/Logo2.png"
-                  alt="Logo"
-                  width={250}
-                  height={15}
-                />
-
-              </div>
+              <Image
+                className="dark:hidden"
+                src="/images/logo/Logo2.png"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
+              <Image
+                className="hidden dark:block"
+                src="/images/logo/Logo2.png"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
             </>
           ) : (
             <Image
-              src="/images/logo/Logo.png"
+              src="/images/logo/Logo2.png"
               alt="Logo"
               width={32}
               height={32}
             />
           )}
         </Link>
-        )}
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">

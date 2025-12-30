@@ -1,9 +1,7 @@
 "use client";
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense } from "react";
 import dynamic from 'next/dynamic';
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 
 // Import components dynamically with SSR disabled
 const UserInfoCard = dynamic(() => import("@/components/user-profile/UserInfoCard"), {
@@ -19,17 +17,7 @@ const LoadingCard = () => (
   </div>
 );
 
-export default function ProfilePage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/signin");
-    }
-  }, [user, loading, router]);
-  // Render profile content or loading indicator
-  if (loading || !user) return null;
+export default function Profile() {
   return (
     <div>
       <div className="rounded-2xl bg-white dark:bg-gray-900">

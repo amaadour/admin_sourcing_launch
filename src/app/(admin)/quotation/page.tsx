@@ -5,21 +5,23 @@ import React from "react";
 import { 
   Table, 
   TableBody, 
-  TableCell, 
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
 import Button from "@/components/ui/button/Button";
-import Badge from "@/components/ui/badge/Badge";
+import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import QuotationFormModal from "@/components/quotation/QuotationFormModal";
-import QuotationDetailsModal from "@/components/quotation/QuotationDetailsModal";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import CheckoutConfirmationModal from "@/components/quotation/CheckoutConfirmationModal";
-import MultiQuotationModal from "@/components/quotation/MultiQuotationModal";
-import { QuotationData, PriceOption } from "@/types/quotation";
-import { useRouter } from "next/navigation";
+import { QuotationData } from "@/types/quotation";
+import QuotationEditModal from "@/components/quotation/QuotationEditModal";
+import PriceOptionsModal from "@/components/quotation/PriceOptionsModal";
+
+// Constants
+const ITEMS_PER_PAGE = 10;
+const STATUS_OPTIONS = ['All', 'Pending', 'Approved', 'Rejected'] as const;
+type StatusOption = typeof STATUS_OPTIONS[number];
 
 // Metrics interface
 interface QuotationMetrics {
@@ -29,371 +31,342 @@ interface QuotationMetrics {
   rejected: number;
 }
 
+interface CustomTableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
+  className?: string;
+  children: React.ReactNode;
+  colSpan?: number;
+  isHeader?: boolean;
+}
+
+const TableCell = ({ className, children, colSpan, isHeader, ...props }: CustomTableCellProps) => {
+  if (isHeader) {
+    return (
+      <th className={className} colSpan={colSpan} {...props}>
+        {children}
+      </th>
+    );
+  }
+  return (
+    <td className={className} colSpan={colSpan} {...props}>
+      {children}
+    </td>
+  );
+};
+
+// Update the UserInfo interface
+interface UserInfo {
+  email: string;
+  fullName: string;
+  role: string;
+  phone: string;
+  country: string;
+}
+
+// Helper to validate Supabase image URLs
+const isValidImageUrl = (url: string | null | undefined) =>
+  !!url && url.startsWith('https://cfhochnjniddaztgwrbk.supabase.co/');
+
 export default function QuotationPage() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedQuotation, setSelectedQuotation] = useState<QuotationData | null>(null);
-  const [quotationData, setQuotationData] = useState<QuotationData[]>([]);
+  const [quotations, setQuotations] = useState<QuotationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedStatus, setSelectedStatus] = useState<StatusOption>('All');
   const [metrics, setMetrics] = useState<QuotationMetrics>({
     total: 0,
     approved: 0,
     pending: 0,
     rejected: 0
   });
-  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
-  const [selectedCheckoutQuotation, setSelectedCheckoutQuotation] = useState<QuotationData | null>(null);
-  const [isMultiQuotationModalOpen, setIsMultiQuotationModalOpen] = useState(false);
-  const [approvedQuotations, setApprovedQuotations] = useState<QuotationData[]>([]);
-  const [profileComplete, setProfileComplete] = useState(true);
-  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentQuotation, setCurrentQuotation] = useState<QuotationData | null>(null);
+  const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get the current user from auth context
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/signup");
-    }
-  }, [user, loading, router]);
-
-  // Function to check if the user profile is complete
-  const checkProfileCompleteness = useCallback(async (userId: string) => {
+  // Wrap fetchData in useCallback to make it stable
+  const fetchData = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, phone, country, address, city')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching profile data:", error);
-        setProfileComplete(false);
-        return false;
-      }
-
-      // Check if essential profile fields are filled
-      const isComplete = data && 
-                        data.first_name && 
-                        data.last_name && 
-                        data.phone && 
-                        data.country;
+      setIsLoading(true);
+      setError(null);
       
-      setProfileComplete(!!isComplete);
-      return !!isComplete;
-    } catch (error) {
-      console.error("Error checking profile completeness:", error);
-      setProfileComplete(false);
-      return false;
-    }
-  }, []);
-
-  // Check profile completeness when user changes
-  useEffect(() => {
-    if (user?.id) {
-      checkProfileCompleteness(user.id);
-    }
-  }, [user?.id, checkProfileCompleteness]);
-
-  // Fetch quotation data and metrics from Supabase
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        
-        console.log("Fetching quotations data...");
-        
-        // Check current user session first
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Session error:", sessionError);
-        }
-        
-        console.log("Current user session:", sessionData?.session ? "Authenticated" : "Not authenticated");
-        
-        // Get the user ID from the auth context
-        const userId = user?.id;
-        
-        if (!userId) {
-          console.warn("No user ID available, showing no quotations");
-          setQuotationData([]);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Fetch quotations with all necessary fields and filter by user_id
-        console.log(`Executing quotations query for user_id: ${userId}...`);
-        const { data: quotationsData, error: quotationsError } = await supabase
-          .from('quotations')
-          .select(`
-            id,
-            quotation_id,
-            product_name,
-            quantity,
-            created_at,
-            status,
-            shipping_method,
-            shipping_country,
-            shipping_city,
-            image_url,
-            service_type,
-            product_url,
-            selected_option,
-            title_option1,
-            image_option1,
-            total_price_option1,
-            delivery_time_option1,
-            description_option1,
-            title_option2,
-            image_option2,
-            total_price_option2,
-            delivery_time_option2,
-            description_option2,
-            title_option3,
-            image_option3,
-            total_price_option3,
-            delivery_time_option3,
-            description_option3,
-            unit_price_option1,
-            unit_weight_option1,
-            image_option1_2,
-            unit_price_option2,
-            unit_weight_option2,
-            image_option2_2,
-            unit_price_option3,
-            unit_weight_option3,
-            image_option3_2,
-            extra_images_option1,
-            extra_images_option2,
-            extra_images_option3,
-            receiver_name,
-            receiver_phone,
-            receiver_address
-          `)
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-          
-        if (quotationsError) {
-          console.error("Error fetching quotations:", quotationsError);
-          console.error("Error details:", JSON.stringify(quotationsError, null, 2));
-          setQuotationData([]);
-          setIsLoading(false);
-          return;
-        }
-
-        if (!quotationsData || quotationsData.length === 0) {
-          console.log("No quotations found for this user");
-          setQuotationData([]);
-          setMetrics({
-            total: 0,
-            approved: 0,
-            pending: 0,
-            rejected: 0
-          });
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log(`Quotations retrieved: ${quotationsData.length}`);
-        
-        // Transform data to match the format expected by the component
-        try {
-          const formattedData = quotationsData.map(item => {
-            // Format price options from the flattened data
-            const priceOptions: PriceOption[] = [];
-            
-            // Add option 1 if it exists
-            if (item.title_option1) {
-              priceOptions.push({
-                id: '1',
-                price: item.total_price_option1 ? `$${parseFloat(item.total_price_option1).toLocaleString()}` : 'N/A',
-                supplier: item.title_option1,
-                deliveryTime: item.delivery_time_option1 || 'N/A',
-                description: item.description_option1,
-                modelName: item.title_option1,
-                modelImage: item.image_option1 || "/images/product/product-01.jpg",
-                unit_price_option1: item.unit_price_option1 ?? null,
-                unit_weight_option1: item.unit_weight_option1 ?? null,
-                image_option1_2: item.image_option1_2 ?? null,
-                extra_images_option1: item.extra_images_option1 ?? [],
-              });
-            }
-            
-            // Add option 2 if it exists
-            if (item.title_option2) {
-              priceOptions.push({
-                id: '2',
-                price: item.total_price_option2 ? `$${parseFloat(item.total_price_option2).toLocaleString()}` : 'N/A',
-                supplier: item.title_option2,
-                deliveryTime: item.delivery_time_option2 || 'N/A',
-                description: item.description_option2,
-                modelName: item.title_option2,
-                modelImage: item.image_option2 || "/images/product/product-01.jpg",
-                unit_price_option2: item.unit_price_option2 ?? null,
-                unit_weight_option2: item.unit_weight_option2 ?? null,
-                image_option2_2: item.image_option2_2 ?? null,
-                extra_images_option2: item.extra_images_option2 ?? [],
-              });
-            }
-            
-            // Add option 3 if it exists
-            if (item.title_option3) {
-              priceOptions.push({
-                id: '3',
-                price: item.total_price_option3 ? `$${parseFloat(item.total_price_option3).toLocaleString()}` : 'N/A',
-                supplier: item.title_option3,
-                deliveryTime: item.delivery_time_option3 || 'N/A',
-                description: item.description_option3,
-                modelName: item.title_option3,
-                modelImage: item.image_option3 || "/images/product/product-01.jpg",
-                unit_price_option3: item.unit_price_option3 ?? null,
-                unit_weight_option3: item.unit_weight_option3 ?? null,
-                image_option3_2: item.image_option3_2 ?? null,
-                extra_images_option3: item.extra_images_option3 ?? [],
-              });
-            }
-
-            // Calculate average price from options
-            let price;
-            if (priceOptions.length > 0) {
-              const validPrices = priceOptions
-                .map(opt => parseFloat(opt.price.replace(/[$,]/g, '')))
-                .filter(p => !isNaN(p));
-              
-              if (validPrices.length > 0) {
-                const average = validPrices.reduce((sum, price) => sum + price, 0) / validPrices.length;
-                price = `$${average.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-              }
-            }
-            
-            return {
-              // Keep the actual UUID as id
-              id: item.id,
-              // Use quotation_id for display, or generate one from UUID if not available
-              quotation_id: item.quotation_id || `QT-${item.id.split('-')[0]}`,
-              product: {
-                name: item.product_name || "Unnamed Product",
-                image: item.image_url || "/images/product/product-01.jpg",
-                category: item.service_type || "Uncategorized",
-                description: item.product_url ? `Reference URL: ${item.product_url}` : undefined
-              },
-              quantity: `${item.quantity || 0} units`,
-              date: item.created_at ? new Date(item.created_at).toLocaleDateString() : "No date",
-              status: item.status || "Pending",
-              price: price,
-              shippingMethod: item.shipping_method || "Sea Freight",
-              destination: `${item.shipping_city || ""}, ${item.shipping_country || ""}`.trim().replace(/^,\s*/, ""),
-              priceOptions: priceOptions,
-              hasImage: !!item.image_url,
-              selected_option: item.selected_option,
-              // Receiver information
-              receiver_name: item.receiver_name || undefined,
-              receiver_phone: item.receiver_phone || undefined,
-              receiver_address: item.receiver_address || undefined
-            };
-          });
-          
-          console.log("Data formatted successfully:", formattedData.length);
-          setQuotationData(formattedData);
-          
-          // Store approved quotations for multi-payment
-          const approved = formattedData.filter(item => item.status === "Approved");
-          setApprovedQuotations(approved);
-          
-          // Calculate metrics
-          const total = quotationsData.length;
-          const approvedCount = quotationsData.filter(item => item.status === "Approved").length;
-          const pending = quotationsData.filter(item => item.status === "Pending").length;
-          const rejected = quotationsData.filter(item => item.status === "Rejected").length;
-          
-          console.log(`Metrics - Total: ${total}, Approved: ${approvedCount}, Pending: ${pending}, Rejected: ${rejected}`);
-          
-          setMetrics({
-            total,
-            approved: approvedCount,
-            pending,
-            rejected
-          });
-        } catch (formatError) {
-          console.error("Error formatting data:", formatError);
-        }
-      } catch (error) {
-        console.error("Exception fetching data:", error);
-        console.error("Error details:", error instanceof Error ? error.message : String(error));
-      } finally {
+      if (!user?.id) {
+        setError("Authentication required");
+        setQuotations([]);
         setIsLoading(false);
-      }
-    }
-    
-    fetchData();
-  }, [user?.id]); // Add user?.id as a dependency
-
-  // Check if there are any approved quotations
-  // const hasApprovedQuotations = quotationData.some(item => item.status === "Approved");
-
-  const openModal = () => setIsModalOpen(true);
-  const closeModal = () => setIsModalOpen(false);
-
-  const openDetailsModal = (quotation: QuotationData) => {
-    setSelectedQuotation(quotation);
-    setIsDetailsModalOpen(true);
-  };
-
-  const closeDetailsModal = () => {
-    setIsDetailsModalOpen(false);
-    setSelectedQuotation(null);
-  };
-
-  const openCheckoutModal = (quotation: QuotationData) => {
-    setSelectedCheckoutQuotation(quotation);
-    setIsCheckoutModalOpen(true);
-  };
-
-  const closeCheckoutModal = () => {
-    setSelectedCheckoutQuotation(null);
-    setIsCheckoutModalOpen(false);
-  };
-
-  const closeMultiQuotationModal = () => {
-    setIsMultiQuotationModalOpen(false);
-  };
-
-  const handleCheckoutConfirm = (selectedQuotations: QuotationData[], paymentMethod: string) => {
-    try {
-      if (!selectedQuotations || selectedQuotations.length === 0) {
-        throw new Error("No quotations selected");
-      }
-
-      if (!paymentMethod) {
-        throw new Error("No payment method selected");
-      }
-
-      // If there's only one quotation, use single quotation flow
-      if (selectedQuotations.length === 1) {
-        const quotationId = selectedQuotations[0].quotation_id || selectedQuotations[0].id;
-        const url = `/payment?quotationId=${quotationId}`;
-        window.location.href = url;
         return;
       }
-      
-      // For multiple quotations, create a comma-separated list of quotation IDs
-      const quotationIds = selectedQuotations
-        .map(q => q.quotation_id || q.id)
-        .filter(Boolean)
-        .join(',');
 
-      if (!quotationIds) {
-        throw new Error("Invalid quotation IDs");
+      // Build the base query with proper join
+      let query = supabase
+        .from('quotations')
+        .select(`
+          *,
+          profiles (
+            id,
+            email,
+            full_name,
+            phone,
+            country,
+            role
+          )
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false });
+
+      // Apply status filter
+      if (selectedStatus !== 'All') {
+        query = query.eq('status', selectedStatus);
       }
 
-      const url = `/payment`;
-      window.location.href = url;
+      // Apply search filter if exists
+      if (searchQuery) {
+        query = query.or(
+          `product_name.ilike.%${searchQuery}%,quotation_id.ilike.%${searchQuery}%,profiles.email.ilike.%${searchQuery}%`
+        );
+      }
+
+      // Apply pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
+      
+      // Execute the query
+      const { data: quotationsData, error: quotationsError, count } = await query as unknown as {
+        data: Array<{
+          id: string;
+          user_id: string;
+          quotation_id?: string;
+          product_name?: string;
+          image_url?: string;
+          product_description?: string;
+          quantity?: number;
+          created_at: string;
+          status?: string;
+          total_price_option1?: string | number;
+          shipping_method?: string;
+          shipping_city?: string;
+          shipping_country?: string;
+          Quotation_fees?: number | null;
+          service_type?: string;
+          title_option1?: string;
+          image_option1?: string;
+          price_description_option1?: string;
+          delivery_time_option1?: string;
+          description_option1?: string;
+          total_price_option2?: string;
+          title_option2?: string;
+          image_option2?: string;
+          price_description_option2?: string;
+          delivery_time_option2?: string;
+          description_option2?: string;
+          title_option3?: string;
+          total_price_option3?: string;
+          image_option3?: string;
+          price_description_option3?: string;
+          delivery_time_option3?: string;
+          description_option3?: string;
+          selected_option?: number;
+          product_url?: string;
+          receiver_name?: string;
+          receiver_phone?: string;
+          receiver_address?: string;
+          profiles?: {
+            email?: string;
+            full_name?: string;
+            role?: string;
+            phone?: string;
+            country?: string;
+          };
+        }> | null,
+        error: unknown,
+        count: number | null
+      };
+
+      if (quotationsError) {
+        console.error('Error fetching quotations:', quotationsError);
+        throw quotationsError;
+      }
+
+      console.log('Raw quotations data:', quotationsData); // Debug log
+
+      // Calculate total pages
+      if (count !== null) {
+        setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+      }
+
+      // Format the data
+      const formattedData = quotationsData?.map((item) => {
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          quotation_id: item.quotation_id || `QT-${item.id}`,
+          product: {
+            name: item.product_name || "",
+            image: item.image_url || "",
+            category: '', // Don't use service_type as category
+            description: item.product_description || ""
+          },
+          quantity: item.quantity?.toString() || "0",
+          date: item.created_at,
+          status: item.status || "Pending",
+          price: item.total_price_option1?.toString() || "0",
+          shippingMethod: item.shipping_method || "",
+          destination: item.shipping_city ? `${item.shipping_city}, ${item.shipping_country}` : "",
+          hasImage: Boolean(item.image_url),
+          Quotation_fees: item.Quotation_fees,
+          user: item.profiles ? {
+            email: item.profiles.email || "",
+            fullName: item.profiles.full_name || "",
+            role: item.profiles.role || "",
+            phone: item.profiles.phone || "",
+            address: "",
+            city: "",
+            country: item.profiles.country || ""
+          } : undefined,
+          service_type: item.service_type,
+          // Add price options data
+          title_option1: item.title_option1,
+          total_price_option1: item.total_price_option1 !== undefined ? String(item.total_price_option1) : undefined,
+          image_option1: item.image_option1,
+          price_description_option1: item.price_description_option1,
+          delivery_time_option1: item.delivery_time_option1,
+          description_option1: item.description_option1,
+          title_option2: item.title_option2,
+          total_price_option2: item.total_price_option2,
+          image_option2: item.image_option2,
+          price_description_option2: item.price_description_option2,
+          delivery_time_option2: item.delivery_time_option2,
+          description_option2: item.description_option2,
+          title_option3: item.title_option3,
+          total_price_option3: item.total_price_option3,
+          image_option3: item.image_option3,
+          price_description_option3: item.price_description_option3,
+          delivery_time_option3: item.delivery_time_option3,
+          description_option3: item.description_option3,
+          selected_option: item.selected_option,
+          product_url: item.product_url,
+          receiver_name: item.receiver_name,
+          receiver_phone: item.receiver_phone,
+          receiver_address: item.receiver_address,
+        };
+      }) || [];
+
+      setQuotations(formattedData);
+
+      // Calculate metrics
+      const metricsRes = await supabase
+        .from('quotations')
+        .select('status');
+
+      const metricsData = (metricsRes.data ?? []) as unknown as Array<{ status?: string | null }>
+
+      if (metricsData && Array.isArray(metricsData)) {
+        const total = metricsData.length;
+        const approved = metricsData.filter(item => item.status === "Approved").length;
+        const pending = metricsData.filter(item => item.status === "Pending").length;
+        const rejected = metricsData.filter(item => item.status === "Rejected").length;
+        
+        setMetrics({ total, approved, pending, rejected });
+      }
+
     } catch (error) {
-      console.error('Error processing checkout:', error);
-      alert('There was an error processing your request. Please try again.');
+      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
+  }, [user?.id, currentPage, selectedStatus, searchQuery]);
+
+  // Use fetchData in useEffect
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Handle status filter change
+  const handleStatusChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedStatus(event.target.value as StatusOption);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  // Handle search
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+    setCurrentPage(1); // Reset to first page when search changes
+  };
+
+  // Add modal handlers
+  const handleEdit = (quotation: QuotationData) => {
+    setCurrentQuotation(quotation);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setCurrentQuotation(null);
+    setIsEditModalOpen(false);
+  };
+
+  const handleQuotationUpdate = () => {
+    // Refetch data after update
+    fetchData();
+  };
+
+  const UserInfoModal = ({ isOpen, onClose, userInfo }: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    userInfo: NonNullable<typeof selectedUserInfo>;
+  }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-lg">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">User Information</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Full Name</label>
+              <p className="text-gray-900 dark:text-white">{userInfo.fullName}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Email</label>
+              <p className="text-gray-900 dark:text-white">{userInfo.email}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Phone</label>
+              <p className="text-gray-900 dark:text-white">{userInfo.phone || 'Not provided'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-500 dark:text-gray-400">Country</label>
+              <p className="text-gray-900 dark:text-white">{userInfo.country || 'Not provided'}</p>
+            </div>
+            {userInfo.role === 'admin' && (
+              <div>
+                <label className="text-sm text-gray-500 dark:text-gray-400">Role</label>
+                <p className="text-gray-900 dark:text-white">{userInfo.role}</p>
+              </div>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="text-gray-700 border-gray-300 hover:bg-gray-50 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -405,62 +378,25 @@ export default function QuotationPage() {
             Quotation Management
           </h1>
           <div className="flex flex-wrap items-center gap-3">
-            { /* Temporarily hidden Pay Now button - restore later if needed */ }
-            {/*
+            <Link href="/admin/quotation/new">
               <Button 
                 variant="primary" 
                 size="sm" 
-                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-                onClick={openMultiQuotationModal}
+                className="bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
               >
-                Pay Now
+                Create New Quote
               </Button>
-            */}
-            <Button 
-              variant="primary" 
-              size="sm" 
-              className="bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
-              onClick={openModal}
-              disabled={!profileComplete}
-            >
-              Create New Quote
-            </Button>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Incomplete Profile Alert */}
-      {!profileComplete && (
-        <div className="col-span-12 p-5 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg shadow-sm mb-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-yellow-100 dark:bg-yellow-700 rounded-full p-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 dark:text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-3 flex-1">
-              <h3 className="text-base font-medium text-yellow-800 dark:text-yellow-300">Profile Incomplete</h3>
-              <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-400">Please complete your profile information before creating quotations.</p>
-            </div>
-            <div className="ml-auto">
-              <Button
-                variant="outline"
-                className="bg-white text-yellow-700 hover:bg-yellow-50 border-yellow-300 dark:bg-transparent dark:text-yellow-300 dark:border-yellow-600 dark:hover:bg-yellow-900/30"
-                onClick={() => router.push('/profile')}
-              >
-                Complete Profile
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quotation Summary Cards */}
+      {/* Metrics Cards */}
       <div className="col-span-12">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6">
           {/* Total Quotes */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-800/80 md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg dark:hover:shadow-gray-700/20">
-            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] rounded-xl dark:bg-blue-900/30">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] dark:bg-blue-900/30 rounded-xl">
               <svg className="text-[#0D47A1] dark:text-blue-400" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M7 7H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -479,8 +415,8 @@ export default function QuotationPage() {
           </div>
 
           {/* Approved Quotes */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-800/80 md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg dark:hover:shadow-gray-700/20">
-            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] rounded-xl dark:bg-blue-900/30">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] dark:bg-blue-900/30 rounded-xl">
               <svg className="text-[#0D47A1] dark:text-blue-400" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M9 11L12 14L22 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M21 12V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -497,8 +433,8 @@ export default function QuotationPage() {
           </div>
 
           {/* Pending Quotes */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-800/80 md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg dark:hover:shadow-gray-700/20">
-            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] rounded-xl dark:bg-blue-900/30">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] dark:bg-blue-900/30 rounded-xl">
               <svg className="text-[#0D47A1] dark:text-blue-400" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M12 18V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -521,8 +457,8 @@ export default function QuotationPage() {
           </div>
 
           {/* Rejected Quotes */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-800/80 md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg dark:hover:shadow-gray-700/20">
-            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] rounded-xl dark:bg-blue-900/30">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <div className="flex items-center justify-center w-12 h-12 bg-[#E3F2FD] dark:bg-blue-900/30 rounded-xl">
               <svg className="text-[#0D47A1] dark:text-blue-400" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -540,52 +476,71 @@ export default function QuotationPage() {
         </div>
       </div>
 
-      {/* Quotation Table Section */}
+      {/* Filters and Search */}
       <div className="col-span-12">
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800/80">
-          <div className="flex flex-wrap items-center justify-between gap-4 p-5 md:p-6">
-            <h3 className="font-semibold text-[#0D47A1] dark:text-blue-400 text-base">
-              Recent Quotations
-            </h3>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search quotations..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] w-64 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                />
-                <svg
-                  className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M21 21L16.65 16.65"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <select
+              value={selectedStatus}
+              onChange={handleStatusChange}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+            >
+              {STATUS_OPTIONS.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
           </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearch}
+              placeholder="Search quotations..."
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1E88E5] focus:border-[#1E88E5] w-64 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-400"
+            />
+            <svg
+              className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M21 21L16.65 16.65"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
 
+      {/* Error State */}
+      {error && (
+        <div className="col-span-12">
+          <div className="p-4 bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 rounded-lg">
+            {error}
+          </div>
+        </div>
+      )}
+
+      {/* Quotation Table */}
+      <div className="col-span-12">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
           <div className="max-w-full overflow-x-auto">
-            <div className="min-w-full">
+            <div className="min-w-[1102px]">
               <Table>
-                {/* Table Header */}
-                <TableHeader className="border-b border-gray-100 dark:border-gray-700">
+                <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
                   <TableRow>
                     <TableCell
                       isHeader
@@ -598,6 +553,12 @@ export default function QuotationPage() {
                       className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                     >
                       Product
+                    </TableCell>
+                    <TableCell
+                      isHeader
+                      className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                    >
+                      Service Type
                     </TableCell>
                     <TableCell
                       isHeader
@@ -627,184 +588,237 @@ export default function QuotationPage() {
                       isHeader
                       className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                     >
+                      User
+                    </TableCell>
+                    <TableCell
+                      isHeader
+                      className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                    >
                       Actions
                     </TableCell>
                   </TableRow>
                 </TableHeader>
 
-                {/* Table Body */}
-                <TableBody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {isLoading && (
+                <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                  {isLoading ? (
                     <TableRow>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400 text-center">
-                        <div className="w-full text-center">Loading quotations...</div>
-                      </TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                    </TableRow>
-                  )}
-                  
-                  {!isLoading && quotationData.length === 0 && (
-                    <TableRow>
-                      <TableCell className="px-5 py-4 text-gray-500 dark:text-gray-400 text-center">
-                        <div className="w-full text-center">No quotations found</div>
-                      </TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                      <TableCell>{""}</TableCell>
-                    </TableRow>
-                  )}
-                  
-                  {!isLoading && quotationData.map((item) => (
-                    <TableRow 
-                      key={item.id}
-                      className="transition-all duration-300 hover:bg-[#E3F2FD] dark:hover:bg-blue-900/20 hover:shadow-md cursor-pointer transform hover:translate-x-1 hover:scale-[1.01]"
-                    >
-                      <TableCell className="px-5 py-4">
-                        <span className="text-gray-700 text-sm dark:text-gray-300">
-                        {item.quotation_id}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
-                            {item.product.image && item.product.image !== "/images/product/product-01.jpg" ? (
-                              <Image
-                                src={item.product.image}
-                                alt={item.product.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 text-center p-1">
-                                No image uploaded
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <h6 className="font-medium text-gray-700 text-sm dark:text-gray-300">
-                              {item.product.name}
-                            </h6>
-                            <p className="text-gray-500 text-xs dark:text-gray-400">
-                              {item.product.category}
-                            </p>
-                          </div>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1E88E5] dark:border-blue-400"></div>
                         </div>
                       </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className="text-gray-700 text-sm dark:text-gray-300">
-                        {item.quantity}
-                        </span>
+                    </TableRow>
+                  ) : quotations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        No quotations found
                       </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className="text-gray-700 text-sm dark:text-gray-300">
-                        {item.date}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <Badge
-                          color={
-                            item.status === "Approved"
-                              ? "success"
-                              : item.status === "Pending"
-                              ? "warning"
-                              : "error"
-                          }
-                        >
-                          {item.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <span className="text-gray-700 text-sm dark:text-gray-300">
-                          {item.price || "N/A"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-5 py-4">
-                        <div className="flex items-center gap-2">
+                    </TableRow>
+                  ) : (
+                    quotations.map((item, index) => (
+                      <TableRow key={`quotation-${item.quotation_id || index}-${index}`}>
+                        <TableCell className="px-5 py-4 sm:px-6 text-start text-gray-700 dark:text-gray-300">
+                          {item.quotation_id}
+                        </TableCell>
+                        <TableCell className="px-5 py-4 sm:px-6 text-start">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 overflow-hidden rounded-lg">
+                              {item.product?.image ? (
+                                isValidImageUrl(item.product.image) ? (
+                                  <Image
+                                    width={40}
+                                    height={40}
+                                    src={item.product.image}
+                                    alt={item.product?.name || 'Product image'}
+                                    className="object-cover w-full h-full"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = '/images/placeholder.png'; // Make sure to have this placeholder image in your public folder
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center w-full h-40 bg-gray-200 text-gray-500 rounded">
+                                    <span style={{fontSize: '2rem'}}>📷</span>
+                                    <span>No Photo Uploaded</span>
+                                  </div>
+                                )
+                              ) : (
+                                <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                  <svg
+                                    className="w-6 h-6 text-gray-400 dark:text-gray-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                                {item.product.name}
+                              </span>
+                              <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                                {item.product.category}
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-5 py-4 text-gray-700 text-start text-theme-sm dark:text-white/90">
+                          {item.service_type || '-'}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                          {item.date ? new Date(item.date).toLocaleDateString() : "No date"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-start">
+                          <Badge
+                            color={
+                              item.status === "Approved"
+                                ? "success"
+                                : item.status === "Pending"
+                                ? "warning"
+                                : "error"
+                            }
+                            className={
+                              item.status === "Approved"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : item.status === "Pending"
+                                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }
+                          >
+                            {item.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                          {item.price}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                          {item.user ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">{item.user.fullName || 'Unknown'}</span>
+                              <span className="text-xs text-blue-500 hover:underline cursor-pointer" 
+                                    onClick={() => setSelectedUserInfo({
+                                      email: item.user?.email || '', 
+                                      fullName: item.user?.fullName || '', 
+                                      role: item.user?.role || '',
+                                      phone: item.user?.phone || '',
+                                      country: item.user?.country || ''
+                                    })}>
+                                {item.user.email}
+                              </span>
+                              <div className="flex flex-col mt-1 text-xs text-gray-500">
+                                {item.user.phone && <span>📱 {item.user.phone}</span>}
+                                {item.user.country && <span>🌍 {item.user.country}</span>}
+                              </div>
+                            </div>
+                          ) : 'N/A'}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                            onClick={() => openDetailsModal(item)}
+                            onClick={() => handleEdit(item)}
+                            className="text-gray-700 border-gray-300 hover:bg-gray-50 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-800"
                           >
-                            Details
+                            Edit
                           </Button>
-                          {item.status === "Approved" && (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-                              onClick={() => openCheckoutModal(item)}
-                            >
-                              Pay Now
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
           </div>
-          
+
           {/* Pagination */}
-          <div className="flex items-center justify-between p-5 border-t border-gray-100 dark:border-gray-700">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Showing 1-{quotationData.length} of {metrics.total} items
+          {!isLoading && quotations.length > 0 && (
+            <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-white/[0.05]">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-
+                {Math.min(currentPage * ITEMS_PER_PAGE, metrics.total)} of {metrics.total} items
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Previous
+                </Button>
+                {[...Array(totalPages)].map((_, i) => (
+                  <Button
+                    key={i + 1}
+                    variant={currentPage === i + 1 ? "primary" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(i + 1)}
+                    className={currentPage === i + 1 
+                      ? "bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
+                      : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"}
+                  >
+                    {i + 1}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-1">
-              <button className="px-3 py-1 text-sm rounded-md border border-gray-300 text-gray-500 hover:bg-[#E3F2FD] hover:text-[#1E88E5] disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:text-gray-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400" disabled>
-                Previous
-              </button>
-              <button className="px-3 py-1 text-sm rounded-md bg-[#1E88E5] text-white dark:bg-blue-600">
-                1
-              </button>
-              <button className="px-3 py-1 text-sm rounded-md border border-gray-300 text-gray-500 hover:bg-[#E3F2FD] hover:text-[#1E88E5] dark:border-gray-600 dark:text-gray-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
-                2
-              </button>
-              <button className="px-3 py-1 text-sm rounded-md border border-gray-300 text-gray-500 hover:bg-[#E3F2FD] hover:text-[#1E88E5] dark:border-gray-600 dark:text-gray-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
-                3
-              </button>
-              <button className="px-3 py-1 text-sm rounded-md border border-gray-300 text-gray-500 hover:bg-[#E3F2FD] hover:text-[#1E88E5] dark:border-gray-600 dark:text-gray-400 dark:hover:bg-blue-900/20 dark:hover:text-blue-400">
-                Next
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Modals */}
-      <QuotationFormModal isOpen={isModalOpen} onClose={closeModal} />
-      {selectedQuotation && (
-        <QuotationDetailsModal 
-          isOpen={isDetailsModalOpen} 
-          onClose={closeDetailsModal}
-          quotation={selectedQuotation}
-          openCheckoutModal={openCheckoutModal}
+      {currentQuotation && (
+        <QuotationEditModal
+          isOpen={isEditModalOpen}
+          onClose={handleCloseEditModal}
+          quotation={currentQuotation}
+          onUpdate={handleQuotationUpdate}
         />
       )}
-      {selectedCheckoutQuotation && (
-        <CheckoutConfirmationModal
-          isOpen={isCheckoutModalOpen}
-          onClose={closeCheckoutModal}
-          onConfirm={(paymentMethod) => handleCheckoutConfirm([selectedCheckoutQuotation], paymentMethod || '')}
-          quotation={selectedCheckoutQuotation}
+
+      {currentQuotation && (
+        <PriceOptionsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          quotationId={currentQuotation.id}
+          initialData={{
+            title_option1: currentQuotation.product.name,
+            image_option1: currentQuotation.product.image,
+            image_option2: null,
+            image_option3: null
+          }}
+          onUpdate={handleQuotationUpdate}
         />
       )}
-      <MultiQuotationModal
-        isOpen={isMultiQuotationModalOpen}
-        onClose={closeMultiQuotationModal}
-        quotations={approvedQuotations}
-        onProceedToPayment={(selectedQuotations, paymentMethod) => handleCheckoutConfirm(selectedQuotations, paymentMethod)}
-      />
+
+      {selectedUserInfo && (
+        <UserInfoModal
+          isOpen={!!selectedUserInfo}
+          onClose={() => setSelectedUserInfo(null)}
+          userInfo={selectedUserInfo}
+        />
+      )}
     </div>
   );
 } 

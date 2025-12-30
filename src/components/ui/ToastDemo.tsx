@@ -45,6 +45,7 @@ export function ToastDemo() {
           className="px-4 py-2 bg-purple-100 dark:bg-purple-800/30 text-purple-800 dark:text-purple-200 rounded-md hover:bg-purple-200 dark:hover:bg-purple-800/50 transition-colors"
           onClick={() => 
             customToast({
+              variant: 'default',
               title: 'Profile Updated',
               description: 'Your profile information has been updated successfully.',
             })

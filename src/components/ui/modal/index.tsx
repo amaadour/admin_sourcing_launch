@@ -8,7 +8,6 @@ interface ModalProps {
   children: React.ReactNode;
   showCloseButton?: boolean; // New prop to control close button visibility
   isFullscreen?: boolean; // Default to false for backwards compatibility
-  maxHeight?: string; // New prop to control max height for scrolling
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -18,7 +17,6 @@ export const Modal: React.FC<ModalProps> = ({
   className,
   showCloseButton = true, // Default to true for backwards compatibility
   isFullscreen = false,
-  maxHeight,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -54,12 +52,10 @@ export const Modal: React.FC<ModalProps> = ({
 
   const contentClasses = isFullscreen
     ? "w-full h-full"
-    : "relative w-full rounded-3xl bg-white dark:bg-gray-900";
-
-  const contentStyle = maxHeight ? { maxHeight } : {};
+    : "relative w-full rounded-3xl bg-white  dark:bg-gray-900";
 
   return (
-    <div className="fixed inset-0 flex items-start md:items-center justify-center overflow-y-auto z-99999 p-4 pt-10 md:p-10">
+    <div className="fixed inset-0 flex items-center justify-center overflow-y-auto modal z-99999">
       {!isFullscreen && (
         <div
           className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
@@ -68,14 +64,13 @@ export const Modal: React.FC<ModalProps> = ({
       )}
       <div
         ref={modalRef}
-        className={`${contentClasses} ${className} max-h-[90vh] md:max-h-[85vh] shadow-xl flex flex-col`}
-        style={contentStyle}
+        className={`${contentClasses}  ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {showCloseButton && (
           <button
             onClick={onClose}
-            className="sticky top-3 right-3 z-999 float-right flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:top-6 sm:right-6 sm:h-11 sm:w-11 ml-[350px] mr-[350px]"
+            className="absolute right-3 top-3 z-999 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-6 sm:top-6 sm:h-11 sm:w-11"
           >
             <svg
               width="24"
@@ -93,7 +88,7 @@ export const Modal: React.FC<ModalProps> = ({
             </svg>
           </button>
         )}
-        <div className="clear-both flex flex-col h-full">{children}</div>
+        <div>{children}</div>
       </div>
     </div>
   );

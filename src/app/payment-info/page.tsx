@@ -51,11 +51,37 @@ export default function PaymentInfoPage() {
           throw new Error(`Error fetching payments: ${paymentsError.message}`);
         }
 
-        setPayments(paymentsData || []);
+        // Normalize payments data shape and quotation_ids into string[]
+        const normalizedPayments = (paymentsData ?? []).map((p) => {
+          const row = p as unknown as {
+            id: string;
+            reference_number: string | null;
+            total_amount: number | string;
+            method: string;
+            status: string;
+            created_at: string;
+            quotation_ids?: string[] | string | null;
+          };
+          const quotationIdsArray: string[] = Array.isArray(row.quotation_ids)
+            ? row.quotation_ids
+            : typeof row.quotation_ids === 'string'
+              ? row.quotation_ids.split(',').map((id) => id.trim()).filter(Boolean)
+              : [];
+          return {
+            id: row.id,
+            reference_number: row.reference_number,
+            total_amount: typeof row.total_amount === 'number' ? row.total_amount : Number(row.total_amount ?? 0),
+            method: row.method,
+            status: row.status,
+            created_at: row.created_at,
+            quotation_ids: quotationIdsArray,
+          } as Payment;
+        });
+        setPayments(normalizedPayments);
 
         // Collect all quotation IDs
         const allQuotationIds: string[] = [];
-        paymentsData?.forEach(payment => {
+        normalizedPayments.forEach(payment => {
           if (payment.quotation_ids && payment.quotation_ids.length > 0) {
             allQuotationIds.push(...payment.quotation_ids);
           }
@@ -74,12 +100,13 @@ export default function PaymentInfoPage() {
 
           // Organize quotations by payment ID
           const quotationsByPayment: Record<string, Quotation[]> = {};
+          const quotationRows = (quotationsData ?? []) as unknown as Quotation[];
           
-          paymentsData?.forEach(payment => {
+          normalizedPayments.forEach(payment => {
             if (payment.quotation_ids && payment.quotation_ids.length > 0) {
-              quotationsByPayment[payment.id] = quotationsData?.filter(
-                quotation => payment.quotation_ids.includes(quotation.id)
-              ) || [];
+              quotationsByPayment[payment.id] = quotationRows.filter(
+                (quotation) => payment.quotation_ids.includes(quotation.id)
+              );
             } else {
               quotationsByPayment[payment.id] = [];
             }
@@ -118,15 +145,9 @@ export default function PaymentInfoPage() {
     };
 
     const { color, text } = statusMap[status] || { color: 'bg-gray-100 text-gray-800', text: status };
-
+    
     return (
-      <span
-        className={`inline-flex items-center border text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent shadow px-2 py-1 font-medium rounded-full ${
-          status === 'Approved'
-            ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-400'
-            : color
-        }`}
-      >
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
         {text}
       </span>
     );

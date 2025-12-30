@@ -16,13 +16,13 @@ export default function AuthLayout({
       <ThemeProvider>
         <div className="relative flex lg:flex-row w-full h-screen justify-center flex-col  dark:bg-gray-900 sm:p-0">
           {children}
-          <div className="lg:w-1/2 w-full h-full bg-blue-600 dark:bg-white/5 lg:grid items-center hidden">
+          <div className="lg:w-1/2 w-full h-full bg-white dark:bg-white/5 lg:grid items-center hidden">
             <div className="relative items-center justify-center  flex z-1">
               {/* <!-- ===== Common Grid Shape Start ===== --> */}
               <GridShape />
               <div className="flex flex-col items-center max-w-xs">
                 <Link href="/" className="block mb-4">
-                  <div className="bg-white dark:bg-white p-[15px] rounded-xl shadow-lg transition-all duration-300">
+                  <div className="dark:bg-white dark:p-4 dark:rounded-xl dark:shadow-lg transition-all duration-300">
                     <Image
                       width={231}
                       height={48}
@@ -31,8 +31,8 @@ export default function AuthLayout({
                     />
                   </div>
                 </Link>
-                <p className="text-center text-white dark:text-white">
-                Your Orders, Your Control — Welcome to Your Dashboard
+                <p className="text-center text-black dark:text-white">
+                Admin Dashboard for Managing Client Orders Efficiently
                 </p>
               </div>
             </div>

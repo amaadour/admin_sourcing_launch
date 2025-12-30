@@ -137,6 +137,8 @@ layer(base);
   --color-warning-900: #7a2e0e;
   --color-warning-950: #4e1d09;
 
+  --color-amber-50: #fffbeb;
+
   --color-theme-pink-500: #ee46bc;
 
   --color-theme-purple-500: #7a5af8;
@@ -248,7 +250,7 @@ layer(base);
 }
 
 @utility menu-dropdown-badge {
-  @apply ml-auto flex h-5 items-center justify-center rounded bg-brand-100 px-1.5 text-xs font-medium text-brand-600 dark:bg-brand-500/20 dark:text-brand-400;
+  @apply block rounded-full px-2.5 py-0.5 text-xs font-medium uppercase text-brand-500 dark:text-brand-400;
 }
 
 @utility menu-dropdown-badge-active {
@@ -270,44 +272,23 @@ layer(base);
 
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
-    width: 8px;
+    @apply size-1.5;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
+    @apply rounded-full;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #e4e7ec;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: #d0d5dd;
+    @apply bg-gray-200 rounded-full dark:bg-gray-700;
   }
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #344054;
+  background-color: #344054;
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475467;
-}
 
-/* Hide scrollbar when not hovering */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-}
-
-.custom-scrollbar:hover {
-  scrollbar-color: #e4e7ec transparent;
-}
-
-.dark .custom-scrollbar:hover {
-  scrollbar-color: #344054 transparent;
-}
 
 @layer utilities {
   /* For Remove Date Icon */
@@ -317,25 +298,6 @@ layer(base);
   input[type="time"]::-webkit-calendar-picker-indicator {
     display: none;
     -webkit-appearance: none;
-  }
-  
-  /* For Remove Number Input Spinner */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type="number"] {
-    -moz-appearance: textfield;
-  }
-  
-  /* For better emoji/flag rendering */
-  .emoji-flag {
-    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', 'Android Emoji', 'EmojiSymbols', 'EmojiOne Mozilla', 'Twemoji Mozilla', 'Noto Emoji', sans-serif;
-    font-style: normal;
-    font-weight: normal;
-    line-height: 1;
-    display: inline-block;
   }
 }
 
