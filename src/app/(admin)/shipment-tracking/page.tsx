@@ -710,30 +710,6 @@ export default function ShipmentTrackingPage() {
                   </div>
                 </div>
               </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Timeline</p>
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(selectedShipment.created_at)}</p>
-                        </div>
-                        {selectedShipment.status?.toLowerCase() === "delivered" ? (
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Delivered</p>
-                            <p className="text-sm font-medium text-green-600 dark:text-green-400">{formatDate(selectedShipment.delivered_at)}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Estimated Delivery</p>
-                            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{formatDate(selectedShipment.estimated_delivery)}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
               
               {/* Location Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -1139,6 +1115,8 @@ export default function ShipmentTrackingPage() {
 
                           if (!title && !totalPrice) return null;
 
+                          const titleStr = typeof title === 'string' ? title : String(title || 'N/A');
+
                           return (
                             <div
                               key={optionNum}
@@ -1150,50 +1128,50 @@ export default function ShipmentTrackingPage() {
                             >
                               <div className="flex items-center justify-between mb-3">
                                 <h5 className="text-base font-bold text-gray-900 dark:text-white">
-                                  Option {optionNum}: {title || "N/A"}
+                                  Option {optionNum}: {titleStr}
                                 </h5>
                                 {isSelected && (
                                   <Badge color="primary" size="sm">Selected</Badge>
                                 )}
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {totalPrice && (
+                                {totalPrice ? (
                                   <div>
                                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Price</p>
                                     <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(totalPrice).toFixed(2)}</p>
                                   </div>
-                                )}
-                                {unitPrice && (
+                                ) : null}
+                                {unitPrice ? (
                                   <div>
                                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Price</p>
                                     <p className="text-base font-semibold text-gray-900 dark:text-white">${Number(unitPrice).toFixed(2)}</p>
                                   </div>
-                                )}
-                                {deliveryTime && (
+                                ) : null}
+                                {deliveryTime ? (
                                   <div>
                                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Delivery Time</p>
-                                    <p className="text-base font-medium text-gray-900 dark:text-white">{deliveryTime}</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{String(deliveryTime)}</p>
                                   </div>
-                                )}
-                                {fullQuotationDetails[`unit_weight_option${optionNum}`] && (
+                                ) : null}
+                                {fullQuotationDetails[`unit_weight_option${optionNum}`] ? (
                                   <div>
                                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Weight</p>
-                                    <p className="text-base font-medium text-gray-900 dark:text-white">{fullQuotationDetails[`unit_weight_option${optionNum}`]}g</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{String(fullQuotationDetails[`unit_weight_option${optionNum}`])}g</p>
                                   </div>
-                                )}
+                                ) : null}
                               </div>
-                              {description && (
+                              {description ? (
                                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300">{description}</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{String(description)}</p>
                                 </div>
-                              )}
-                              {priceDescription && (
+                              ) : null}
+                              {priceDescription ? (
                                 <div className="mt-2">
                                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Price Description</p>
-                                  <p className="text-sm text-gray-700 dark:text-gray-300">{priceDescription}</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{String(priceDescription)}</p>
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                           );
                         })}
