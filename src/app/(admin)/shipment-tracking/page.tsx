@@ -710,6 +710,30 @@ export default function ShipmentTrackingPage() {
                   </div>
                 </div>
               </div>
+                    
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Timeline</p>
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDate(selectedShipment.created_at)}</p>
+                        </div>
+                        {selectedShipment.status?.toLowerCase() === "delivered" ? (
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Delivered</p>
+                            <p className="text-sm font-medium text-green-600 dark:text-green-400">{formatDate(selectedShipment.delivered_at)}</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Estimated Delivery</p>
+                            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{formatDate(selectedShipment.estimated_delivery)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               
               {/* Location Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
