@@ -1064,16 +1064,15 @@ export default function ShipmentTrackingPage() {
 
             {/* Receiver Information Section - Enhanced to match payment page style */}
             {(selectedShipment.receiver_name || selectedShipment.receiver_phone || selectedShipment.receiver_address || selectedShipment.quotation?.receiver_name || selectedShipment.quotation?.receiver_phone || selectedShipment.quotation?.receiver_address) && (
-              <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 border dark:border-purple-800 rounded-lg p-6 md:p-8" style={{ borderColor: 'var(--color-amber-50)' }}>
+              <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 border dark:border-purple-800 rounded-lg p-6 md:p-8 border-[var(--color-amber-50)]">
                 <div className="flex justify-between items-center mb-6">
-                  <h4 className="font-semibold dark:text-purple-100" style={{ color: 'var(--color-black)' }}>Receiver Information</h4>
+                  <h4 className="font-semibold dark:text-purple-100 text-[var(--color-black)]">Receiver Information</h4>
                   {!isEditingDetails && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={startEditingDetails}
-                      className="border-purple-300 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/40"
-                      style={{ color: 'var(--color-black)' }}
+                      className="border-purple-300 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/40 text-[var(--color-black)]"
                     >
                       Edit Details
                     </Button>
@@ -1123,16 +1122,16 @@ export default function ShipmentTrackingPage() {
                   <div className="space-y-4 text-sm">
                     {(selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name) && (
                       <div className="flex justify-between items-start gap-4 py-1">
-                        <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Name:</span>
-                        <span className="font-medium dark:text-purple-100 text-right flex-1" style={{ color: 'var(--color-black)' }}>
+                        <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Name:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1 text-[var(--color-black)]">
                           {selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name || 'N/A'}
                         </span>
                       </div>
                     )}
                     {(selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone) && (
                       <div className="flex justify-between items-start gap-4 py-1">
-                        <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Phone:</span>
-                        <span className="font-medium dark:text-purple-100 text-right flex-1" style={{ color: 'var(--color-black)' }}>
+                        <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Phone:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1 text-[var(--color-black)]">
                           {selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone || 'N/A'}
                         </span>
                       </div>
@@ -1140,9 +1139,9 @@ export default function ShipmentTrackingPage() {
                     {(selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address) && (
                       <div className="pt-1">
                         <div className="mb-2">
-                          <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Address:</span>
+                          <span className="dark:text-purple-300 font-medium text-[var(--color-black)]">Address:</span>
                         </div>
-                        <p className="dark:text-purple-100 whitespace-pre-line leading-relaxed" style={{ color: 'var(--color-black)' }}>
+                        <p className="dark:text-purple-100 whitespace-pre-line leading-relaxed text-[var(--color-black)]">
                           {selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address || 'N/A'}
                         </p>
                       </div>
