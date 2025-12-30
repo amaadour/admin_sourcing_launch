@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Image from "next/image"
-import { Plus, X } from "lucide-react"
+import { Plus, X, Download, Check } from "lucide-react"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,6 +66,7 @@ export default function PriceOptionsModal({
   const [quantity, setQuantity] = useState<number>(1)
   const [showOption2, setShowOption2] = useState(!!initialData?.title_option2)
   const [showOption3, setShowOption3] = useState(!!initialData?.title_option3)
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
 
   const [formData, setFormData] = useState<PriceOptionsData>({
     title_option1: initialData?.title_option1 || "",
@@ -238,12 +239,12 @@ export default function PriceOptionsModal({
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number, isExtra = false) => {
-    const file = e.target.files?.[0];
-    if (!file) {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
       customToast({
         variant: "destructive",
         title: "Error",
-        description: "Please select a file to upload"
+        description: "Please select at least one file to upload"
       });
       return;
     }
@@ -251,11 +252,20 @@ export default function PriceOptionsModal({
     // Check limit (max 10 files - images or videos) - only for main image fields
     if (!isExtra) {
       const currentImages = getAllImages(optionNumber);
-      if (currentImages.length >= 10) {
+      const remainingSlots = 10 - currentImages.length;
+      if (remainingSlots <= 0) {
         customToast({
           variant: "destructive",
           title: "Error",
           description: "You can upload a maximum of 10 files per option"
+        });
+        return;
+      }
+      if (files.length > remainingSlots) {
+        customToast({
+          variant: "destructive",
+          title: "Error",
+          description: `You can only upload ${remainingSlots} more file${remainingSlots > 1 ? 's' : ''}. Please select fewer files.`
         });
         return;
       }
@@ -266,92 +276,133 @@ export default function PriceOptionsModal({
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
     const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
     
-    if (!allowedTypes.includes(file.type)) {
+    // Validate all files before uploading
+    const invalidFiles: string[] = [];
+    const oversizedFiles: string[] = [];
+    const filesArray = Array.from(files);
+    
+    filesArray.forEach(file => {
+      if (!allowedTypes.includes(file.type)) {
+        invalidFiles.push(file.name);
+      }
+      const isVideo = allowedVideoTypes.includes(file.type);
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for videos, 2MB for images
+      if (file.size > maxSize) {
+        oversizedFiles.push(file.name);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
       customToast({
         variant: "destructive",
         title: "Error",
-        description: "File must be an image (JPG, PNG, GIF, SVG) or video (MP4, WebM, MOV, AVI)"
+        description: `Invalid file type(s): ${invalidFiles.join(', ')}. Files must be images (JPG, PNG, GIF, SVG) or videos (MP4, WebM, MOV, AVI)`
       });
       return;
     }
 
-    // Check file size - 2MB for images, 50MB for videos
-    const isVideo = allowedVideoTypes.includes(file.type);
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 2 * 1024 * 1024; // 50MB for videos, 2MB for images
-    if (file.size > maxSize) {
-      const maxSizeMB = isVideo ? 50 : 2;
+    if (oversizedFiles.length > 0) {
       customToast({
         variant: "destructive",
         title: "Error",
-        description: `File size must be less than ${maxSizeMB}MB`
+        description: `File(s) too large: ${oversizedFiles.join(', ')}. Images must be less than 2MB and videos less than 50MB`
       });
       return;
     }
 
     try {
       setIsLoading(true);
-      
-      // Create a unique filename with option number and timestamp
-      const fileExt = file.name.split(".").pop();
-      const timestamp = Date.now();
-      const uniqueId = `${timestamp}-${Math.random().toString(36).substring(2, 15)}`;
-      const fileName = `option${optionNumber}${isExtra ? '_2' : ''}-${uniqueId}.${fileExt}`;
+      const uploadedUrls: string[] = [];
+      let successCount = 0;
+      let errorCount = 0;
 
-      // Create unique path for each option
-      const filePath = `price_options/${quotationId}/option${optionNumber}/${fileName}`;
+      // Upload all files sequentially
+      for (let i = 0; i < filesArray.length; i++) {
+        const file = filesArray[i];
+        try {
+          // Create a unique filename with option number and timestamp
+          const fileExt = file.name.split(".").pop();
+          const timestamp = Date.now() + i; // Add index to ensure uniqueness
+          const uniqueId = `${timestamp}-${Math.random().toString(36).substring(2, 15)}`;
+          const fileName = `option${optionNumber}${isExtra ? '_2' : ''}-${uniqueId}.${fileExt}`;
 
-      // Upload the file
-      const { error: uploadError } = await supabase.storage
-        .from("price_option_images")
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false // Set to false to prevent overwriting
-        });
+          // Create unique path for each option
+          const filePath = `price_options/${quotationId}/option${optionNumber}/${fileName}`;
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error(uploadError.message);
+          // Upload the file
+          const { error: uploadError } = await supabase.storage
+            .from("price_option_images")
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false // Set to false to prevent overwriting
+            });
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            errorCount++;
+            continue;
+          }
+
+          // Get the public URL with cache busting
+          const { data: { publicUrl } } = supabase.storage
+            .from("price_option_images")
+            .getPublicUrl(filePath);
+
+          const urlWithCacheBust = `${publicUrl}?t=${timestamp}`;
+          uploadedUrls.push(urlWithCacheBust);
+          successCount++;
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          errorCount++;
+        }
       }
 
-      // Get the public URL with cache busting
-      const { data: { publicUrl } } = supabase.storage
-        .from("price_option_images")
-        .getPublicUrl(filePath);
+      // Add all successfully uploaded images/videos to the form data
+      if (uploadedUrls.length > 0) {
+        if (isExtra) {
+          // For extra images, add to the extra_images array
+          const fieldExtra = `extra_images_option${optionNumber}` as keyof PriceOptionsData;
+          setFormData(prev => {
+            const currentExtrasField = prev[fieldExtra];
+            const currentExtras = Array.isArray(currentExtrasField) ? currentExtrasField : [];
+            return {
+              ...prev,
+              [fieldExtra]: [...currentExtras, ...uploadedUrls]
+            };
+          });
+        } else {
+          // For main images, add to the existing images array
+          const currentImages = getAllImages(optionNumber);
+          const newImages = [...currentImages, ...uploadedUrls];
+          updateOptionImages(optionNumber, newImages);
+        }
+      }
 
-      const urlWithCacheBust = `${publicUrl}?t=${timestamp}`;
-
-      // Add the new image/video to the existing images instead of replacing
-      if (isExtra) {
-        // For extra images, add to the extra_images array
-        const fieldExtra = `extra_images_option${optionNumber}` as keyof PriceOptionsData;
-        setFormData(prev => {
-          const currentExtrasField = prev[fieldExtra];
-          const currentExtras = Array.isArray(currentExtrasField) ? currentExtrasField : [];
-          return {
-            ...prev,
-            [fieldExtra]: [...currentExtras, urlWithCacheBust]
-          };
+      // Show success/error toast
+      if (successCount > 0) {
+        customToast({
+          variant: "default",
+          title: "Upload Complete",
+          description: `Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}${errorCount > 0 ? `. ${errorCount} file(s) failed to upload.` : ''}`
         });
       } else {
-        // For main images, add to the existing images array
-        const currentImages = getAllImages(optionNumber);
-        const newImages = [...currentImages, urlWithCacheBust];
-        updateOptionImages(optionNumber, newImages);
+        customToast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: `Failed to upload ${errorCount} file${errorCount > 1 ? 's' : ''}. Please try again.`
+        });
       }
 
-      customToast({
-        variant: "default",
-        title: "Success",
-        description: file.type.startsWith('video/') ? "Video uploaded successfully" : "Image uploaded successfully"
-      });
+      // Reset the file input
+      e.target.value = '';
     } catch (error) {
       console.error('File upload error:', error);
       customToast({
         variant: "destructive",
         title: "Error",
         description: error instanceof Error 
-          ? `Failed to upload file: ${error.message}` 
-          : "Failed to upload file. Please try again."
+          ? `Failed to upload files: ${error.message}` 
+          : "Failed to upload files. Please try again."
       });
     } finally {
       setIsLoading(false);
@@ -457,8 +508,153 @@ export default function PriceOptionsModal({
   // Helper to remove an image by index
   const removeImage = (optionNum: number, index: number) => {
     const currentImages = getAllImages(optionNum);
+    const imageUrl = currentImages[index];
     const newImages = currentImages.filter((_, idx) => idx !== index);
     updateOptionImages(optionNum, newImages);
+    
+    // Remove from selected if it was selected (using URL as ID)
+    if (imageUrl) {
+      const imageId = `${optionNum}-${imageUrl}`;
+      setSelectedImages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(imageId);
+        return newSet;
+      });
+    }
+  };
+
+  // Toggle image selection
+  const toggleImageSelection = (optionNum: number, index: number) => {
+    const images = getAllImages(optionNum);
+    const url = images[index];
+    if (!url) return;
+    
+    const imageId = `${optionNum}-${url}`;
+    setSelectedImages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(imageId)) {
+        newSet.delete(imageId);
+      } else {
+        newSet.add(imageId);
+      }
+      return newSet;
+    });
+  };
+
+  // Download a single file
+  const downloadFile = async (url: string, filename: string): Promise<void> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
+    }
+  };
+
+  // Download all selected images/videos
+  const handleDownloadSelected = async () => {
+    if (selectedImages.size === 0) {
+      customToast({
+        variant: "destructive",
+        title: "No Selection",
+        description: "Please select at least one image or video to download"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      // Process all options
+      for (let optionNum = 1; optionNum <= 3; optionNum++) {
+        const images = getAllImages(optionNum);
+        
+        for (let idx = 0; idx < images.length; idx++) {
+          const url = images[idx];
+          const imageId = `${optionNum}-${url}`;
+          
+          if (selectedImages.has(imageId)) {
+            try {
+              // Extract filename from URL or create one
+              const urlParts = url.split('/');
+              const originalFilename = urlParts[urlParts.length - 1].split('?')[0];
+              const extension = originalFilename.split('.').pop() || (isVideoUrl(url) ? 'mp4' : 'jpg');
+              const filename = `option${optionNum}_${idx + 1}.${extension}`;
+              
+              // Add small delay between downloads to avoid browser blocking
+              if (successCount > 0) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+              }
+              
+              await downloadFile(url, filename);
+              successCount++;
+            } catch (error) {
+              console.error(`Error downloading file ${url}:`, error);
+              errorCount++;
+            }
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        customToast({
+          variant: "default",
+          title: "Download Complete",
+          description: `Successfully downloaded ${successCount} file${successCount > 1 ? 's' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        });
+        // Clear selection after successful download
+        setSelectedImages(new Set());
+      } else {
+        customToast({
+          variant: "destructive",
+          title: "Download Failed",
+          description: "Failed to download selected files"
+        });
+      }
+    } catch (error) {
+      customToast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred while downloading files"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Select/Deselect all images
+  const toggleSelectAll = (optionNum: number) => {
+    const images = getAllImages(optionNum);
+    const allSelected = images.every((url) => selectedImages.has(`${optionNum}-${url}`));
+    
+    setSelectedImages(prev => {
+      const newSet = new Set(prev);
+      if (allSelected) {
+        // Deselect all in this option
+        images.forEach((url) => {
+          newSet.delete(`${optionNum}-${url}`);
+        });
+      } else {
+        // Select all in this option
+        images.forEach((url) => {
+          newSet.add(`${optionNum}-${url}`);
+        });
+      }
+      return newSet;
+    });
   };
   const renderOption1Content = () => (
     <div className="space-y-5">
@@ -544,9 +740,20 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
-            Images/Videos ({getAllImages(1).length}/10)
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+              Images/Videos ({getAllImages(1).length}/10)
+            </Label>
+            {getAllImages(1).length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleSelectAll(1)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {getAllImages(1).every((url) => selectedImages.has(`1-${url}`)) ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {getAllImages(1).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
@@ -568,9 +775,30 @@ export default function PriceOptionsModal({
                         className="object-cover"
                       />
                     )}
+                    {/* Checkbox for selection */}
                     <button
                       type="button"
-                      onClick={() => removeImage(1, idx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleImageSelection(1, idx);
+                      }}
+                      className={`absolute top-1 left-1 p-1 rounded transition-all ${
+                        selectedImages.has(`1-${url}`)
+                          ? 'bg-blue-600 text-white opacity-100'
+                          : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Check className={`h-3 w-3 ${selectedImages.has(`1-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
+                    </button>
+                    {selectedImages.has(`1-${url}`) && (
+                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImage(1, idx);
+                      }}
                       className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                     >
                       <X className="h-3 w-3" />
@@ -585,6 +813,7 @@ export default function PriceOptionsModal({
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
                   <input 
                     type="file" 
+                    multiple
                     className="hidden" 
                     accept="image/*,video/*" 
                     onChange={(e) => handleImageUpload(e, 1)} 
@@ -684,9 +913,20 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
-            Images/Videos ({getAllImages(2).length}/10)
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+              Images/Videos ({getAllImages(2).length}/10)
+            </Label>
+            {getAllImages(2).length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleSelectAll(2)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {getAllImages(2).every((url) => selectedImages.has(`2-${url}`)) ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {getAllImages(2).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
@@ -708,9 +948,30 @@ export default function PriceOptionsModal({
                         className="object-cover"
                       />
                     )}
+                    {/* Checkbox for selection */}
                     <button
                       type="button"
-                      onClick={() => removeImage(2, idx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleImageSelection(2, idx);
+                      }}
+                      className={`absolute top-1 left-1 p-1 rounded transition-all ${
+                        selectedImages.has(`2-${url}`)
+                          ? 'bg-blue-600 text-white opacity-100'
+                          : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Check className={`h-3 w-3 ${selectedImages.has(`2-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
+                    </button>
+                    {selectedImages.has(`2-${url}`) && (
+                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImage(2, idx);
+                      }}
                       className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                     >
                       <X className="h-3 w-3" />
@@ -725,6 +986,7 @@ export default function PriceOptionsModal({
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
                   <input 
                     type="file" 
+                    multiple
                     className="hidden" 
                     accept="image/*,video/*" 
                     onChange={(e) => handleImageUpload(e, 2)} 
@@ -824,9 +1086,20 @@ export default function PriceOptionsModal({
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
-            Images/Videos ({getAllImages(3).length}/10)
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+              Images/Videos ({getAllImages(3).length}/10)
+            </Label>
+            {getAllImages(3).length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleSelectAll(3)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {getAllImages(3).every((url) => selectedImages.has(`3-${url}`)) ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {getAllImages(3).slice(0, 10).map((url, idx) => (
               <div key={idx} className="relative aspect-square">
@@ -848,9 +1121,30 @@ export default function PriceOptionsModal({
                         className="object-cover"
                       />
                     )}
+                    {/* Checkbox for selection */}
                     <button
                       type="button"
-                      onClick={() => removeImage(3, idx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleImageSelection(3, idx);
+                      }}
+                      className={`absolute top-1 left-1 p-1 rounded transition-all ${
+                        selectedImages.has(`3-${url}`)
+                          ? 'bg-blue-600 text-white opacity-100'
+                          : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Check className={`h-3 w-3 ${selectedImages.has(`3-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
+                    </button>
+                    {selectedImages.has(`3-${url}`) && (
+                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImage(3, idx);
+                      }}
                       className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                     >
                       <X className="h-3 w-3" />
@@ -865,6 +1159,7 @@ export default function PriceOptionsModal({
                 <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
                   <input 
                     type="file" 
+                    multiple
                     className="hidden" 
                     accept="image/*,video/*" 
                     onChange={(e) => handleImageUpload(e, 3)} 
@@ -888,15 +1183,30 @@ return (
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Price Options</h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
-            >
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedImages.size > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadSelected}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Download ({selectedImages.size})
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           {/* Scrollable Content */}

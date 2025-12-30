@@ -18,8 +18,42 @@ interface Quotation {
   id: string;
   quotation_id: string;
   product_name: string;
-  total_price_option1: string;
+  product_url?: string | null;
+  quantity: number;
+  total_price_option1: string | null;
+  total_price_option2: string | null;
+  total_price_option3: string | null;
+  unit_price_option1: string | null;
+  unit_price_option2: string | null;
+  unit_price_option3: string | null;
+  unit_weight_option1: string | null;
+  unit_weight_option2: string | null;
+  unit_weight_option3: string | null;
+  title_option1: string | null;
+  title_option2: string | null;
+  title_option3: string | null;
+  description_option1: string | null;
+  description_option2: string | null;
+  description_option3: string | null;
+  delivery_time_option1: string | null;
+  delivery_time_option2: string | null;
+  delivery_time_option3: string | null;
   image_url: string | null;
+  image_option1: string | null;
+  image_option2: string | null;
+  image_option3: string | null;
+  selected_option: number | null;
+  status: string;
+  service_type: string | null;
+  shipping_method: string | null;
+  shipping_country: string | null;
+  shipping_city: string | null;
+  receiver_name: string | null;
+  receiver_phone: string | null;
+  receiver_address: string | null;
+  created_at: string;
+  updated_at: string | null;
+  Quotation_fees: string | null;
 }
 
 interface Payment {
@@ -54,6 +88,7 @@ export default function PaymentPage() {
   const [currentProofUrl, setCurrentProofUrl] = useState<string | null>(null);
   const [quotationModalOpen, setQuotationModalOpen] = useState(false);
   const [selectedQuotations, setSelectedQuotations] = useState<Quotation[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState<string | null>(null);
 
@@ -166,7 +201,7 @@ export default function PaymentPage() {
         if (quotationIds.length > 0) {
           const { data: quotationsDataById, error: quotationsErrorById } = await supabase
             .from('quotations')
-            .select('id, quotation_id, product_name, total_price_option1, image_url')
+            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
             .in('id', quotationIds);
             
           if (quotationsErrorById) {
@@ -184,7 +219,7 @@ export default function PaymentPage() {
         if (referenceNumbers.length > 0) {
           const { data: quotationsDataByRef, error: quotationsErrorByRef } = await supabase
             .from('quotations')
-            .select('id, quotation_id, product_name, total_price_option1, image_url')
+            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
             .in('quotation_id', referenceNumbers);
             
           if (quotationsErrorByRef) {
@@ -356,10 +391,11 @@ export default function PaymentPage() {
   };
 
   // Handle opening quotations modal
-  const handleViewQuotations = (quotations: Quotation[] | undefined) => {
+  const handleViewQuotations = (quotations: Quotation[] | undefined, payment: Payment) => {
     if (quotations && quotations.length > 0) {
       console.log("Opening quotations modal with", quotations.length, "items");
       setSelectedQuotations(quotations);
+      setSelectedPayment(payment);
       setQuotationModalOpen(true);
     }
   };
@@ -630,7 +666,7 @@ export default function PaymentPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                            onClick={() => handleViewQuotations(payment.quotations)}
+                            onClick={() => handleViewQuotations(payment.quotations, payment)}
                             className="text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20 dark:border-slate-600"
                               >
                             View Quotations
@@ -689,71 +725,243 @@ export default function PaymentPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Quotations Modal - Fixed implementation */}
+      {/* Quotations Modal - Enhanced with comprehensive data */}
       <Dialog open={quotationModalOpen} onOpenChange={setQuotationModalOpen}>
-        <DialogContent className="max-w-4xl bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100">
           <DialogHeader>
-            <DialogTitle className="text-gray-900 dark:text-slate-100">Quotations Paid</DialogTitle>
+            <DialogTitle className="text-gray-900 dark:text-slate-100">
+              Quotations Paid {selectedPayment && `- ${formatAmount(selectedPayment.total_amount)}`}
+            </DialogTitle>
           </DialogHeader>
           
           <div className="mt-4">
             {selectedQuotations.length > 0 ? (
               <div className="space-y-6">
-                {selectedQuotations.map((quotation) => (
-                  <div key={quotation.id} className="flex flex-col md:flex-row gap-4 p-4 border rounded-lg border-gray-200 dark:border-slate-700">
-                    <div className="flex-shrink-0">
-                      {quotation.image_url ? (
-                        <div className="relative h-40 w-40 md:h-48 md:w-48 overflow-hidden rounded-md">
-                          <Image
-                            src={quotation.image_url}
-                            alt={quotation.product_name}
-                            width={192}
-                            height={192}
-                            className="w-full h-full object-cover rounded-md hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(quotation.image_url || '', '_blank')}
-                            style={{ cursor: 'zoom-in' }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-40 w-40 md:h-48 md:w-48 bg-gray-100 dark:bg-slate-700 rounded-md flex items-center justify-center">
-                          <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            className="h-16 w-16 text-gray-400 dark:text-slate-500" 
-                            fill="none" 
-                            viewBox="0 0 24 24" 
-                            stroke="currentColor"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                            />
-                                  </svg>
-                                </div>
-                              )}
+                {selectedQuotations.map((quotation) => {
+                  const selectedOption = quotation.selected_option || 1;
+                  const unitPrice = selectedOption === 1 ? quotation.unit_price_option1 : 
+                                   selectedOption === 2 ? quotation.unit_price_option2 : 
+                                   quotation.unit_price_option3;
+                  const totalPrice = selectedOption === 1 ? quotation.total_price_option1 : 
+                                    selectedOption === 2 ? quotation.total_price_option2 : 
+                                    quotation.total_price_option3;
+                  const title = selectedOption === 1 ? quotation.title_option1 : 
+                               selectedOption === 2 ? quotation.title_option2 : 
+                               quotation.title_option3;
+                  const description = selectedOption === 1 ? quotation.description_option1 : 
+                                     selectedOption === 2 ? quotation.description_option2 : 
+                                     quotation.description_option3;
+                  const deliveryTime = selectedOption === 1 ? quotation.delivery_time_option1 : 
+                                      selectedOption === 2 ? quotation.delivery_time_option2 : 
+                                      quotation.delivery_time_option3;
+                  const calculatedTotal = unitPrice && quotation.quantity ? 
+                    (parseFloat(unitPrice) * quotation.quantity).toFixed(2) : null;
+
+                  return (
+                    <div key={quotation.id} className="border rounded-lg border-gray-200 dark:border-slate-700 p-6 bg-gray-50 dark:bg-slate-900/50">
+                      {/* Header Section */}
+                      <div className="flex flex-col md:flex-row gap-4 mb-6">
+                        <div className="flex-shrink-0">
+                          {quotation.image_url ? (
+                            <div className="relative h-32 w-32 md:h-40 md:w-40 overflow-hidden rounded-md border border-gray-200 dark:border-slate-700">
+                              <Image
+                                src={quotation.image_url}
+                                alt={quotation.product_name}
+                                width={160}
+                                height={160}
+                                className="w-full h-full object-cover rounded-md hover:opacity-90 transition-opacity cursor-pointer"
+                                onClick={() => window.open(quotation.image_url || '', '_blank')}
+                              />
                             </div>
-                            <div className="flex-grow">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">{quotation.product_name}</h3>
-                      <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <p className="text-sm text-gray-500 dark:text-slate-400">Quotation ID</p>
-                          <p className="font-mono text-sm text-gray-700 dark:text-slate-300">{quotation.quotation_id || quotation.id}</p>
-                              </div>
-                        <div>
-                          <p className="text-sm text-gray-500 dark:text-slate-400">Price</p>
-                          <p className="font-medium text-lg text-gray-800 dark:text-slate-100">{formatAmount(quotation.total_price_option1)}</p>
+                          ) : (
+                            <div className="h-32 w-32 md:h-40 md:w-40 bg-gray-100 dark:bg-slate-700 rounded-md flex items-center justify-center border border-gray-200 dark:border-slate-600">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-grow">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-2">{quotation.product_name}</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <p className="text-gray-500 dark:text-slate-400">Quotation ID</p>
+                              <p className="font-mono text-gray-700 dark:text-slate-300 font-medium">{quotation.quotation_id || quotation.id}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 dark:text-slate-400">Status</p>
+                              <Badge className={`mt-1 ${
+                                quotation.status === 'Approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
+                                quotation.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400'
+                              }`}>
+                                {quotation.status}
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 dark:text-slate-400">Service Type</p>
+                              <p className="text-gray-700 dark:text-slate-300">{quotation.service_type || 'N/A'}</p>
                             </div>
                           </div>
+                        </div>
                       </div>
-            </div>
-            ))}
-            </div>
+
+                      {/* Payment Information */}
+                      {selectedPayment && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Payment Information</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div>
+                              <p className="text-blue-700 dark:text-blue-300">Payment Amount</p>
+                              <p className="font-bold text-lg text-blue-900 dark:text-blue-100">{formatAmount(selectedPayment.total_amount)}</p>
+                            </div>
+                            <div>
+                              <p className="text-blue-700 dark:text-blue-300">Payment Method</p>
+                              <p className="text-blue-900 dark:text-blue-100 font-medium">{selectedPayment.method}</p>
+                            </div>
+                            <div>
+                              <p className="text-blue-700 dark:text-blue-300">Payment Status</p>
+                              <Badge className={`mt-1 ${
+                                selectedPayment.status === 'Approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
+                                selectedPayment.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                              }`}>
+                                {selectedPayment.status}
+                              </Badge>
+                            </div>
+                            <div>
+                              <p className="text-blue-700 dark:text-blue-300">Reference Number</p>
+                              <p className="font-mono text-xs text-blue-900 dark:text-blue-100">{selectedPayment.reference_number || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Product Details */}
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">Product Details</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-slate-400">Quantity:</span>
+                              <span className="font-medium text-gray-900 dark:text-slate-100">{quotation.quantity} units</span>
+                            </div>
+                            {quotation.product_url && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-slate-400">Product URL:</span>
+                                <a href={quotation.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline text-xs">
+                                  View Product
+                                </a>
+                              </div>
+                            )}
+                            {quotation.Quotation_fees && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 dark:text-slate-400">Quotation Fees:</span>
+                                <span className="font-medium text-gray-900 dark:text-slate-100">{formatAmount(quotation.Quotation_fees)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
+                          <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">Shipping Information</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-slate-400">Method:</span>
+                              <span className="font-medium text-gray-900 dark:text-slate-100">{quotation.shipping_method || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-slate-400">Country:</span>
+                              <span className="font-medium text-gray-900 dark:text-slate-100">{quotation.shipping_country || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500 dark:text-slate-400">City:</span>
+                              <span className="font-medium text-gray-900 dark:text-slate-100">{quotation.shipping_city || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Selected Price Option */}
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-green-900 dark:text-green-100 mb-3">Selected Price Option {selectedOption}</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-green-700 dark:text-green-300 mb-1">Option Title:</p>
+                            <p className="font-medium text-green-900 dark:text-green-100">{title || 'N/A'}</p>
+                          </div>
+                          {description && (
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300 mb-1">Description:</p>
+                              <p className="text-sm text-green-900 dark:text-green-100">{description}</p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300">Unit Price:</p>
+                              <p className="font-bold text-green-900 dark:text-green-100">{unitPrice ? formatAmount(unitPrice) : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300">Quantity:</p>
+                              <p className="font-bold text-green-900 dark:text-green-100">{quotation.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300">Total:</p>
+                              <p className="font-bold text-lg text-green-900 dark:text-green-100">
+                                {calculatedTotal ? formatAmount(calculatedTotal) : (totalPrice ? formatAmount(totalPrice) : 'N/A')}
+                              </p>
+                            </div>
+                          </div>
+                          {deliveryTime && (
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300">Delivery Time:</p>
+                              <p className="font-medium text-green-900 dark:text-green-100">{deliveryTime}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Receiver Information */}
+                      {(quotation.receiver_name || quotation.receiver_phone || quotation.receiver_address) && (
+                        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-4">
+                          <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-3">Receiver Information</h4>
+                          <div className="space-y-2 text-sm">
+                            {quotation.receiver_name && (
+                              <div className="flex justify-between">
+                                <span className="text-purple-700 dark:text-purple-300">Name:</span>
+                                <span className="font-medium text-purple-900 dark:text-purple-100">{quotation.receiver_name}</span>
+                              </div>
+                            )}
+                            {quotation.receiver_phone && (
+                              <div className="flex justify-between">
+                                <span className="text-purple-700 dark:text-purple-300">Phone:</span>
+                                <span className="font-medium text-purple-900 dark:text-purple-100">{quotation.receiver_phone}</span>
+                              </div>
+                            )}
+                            {quotation.receiver_address && (
+                              <div>
+                                <span className="text-purple-700 dark:text-purple-300">Address:</span>
+                                <p className="text-purple-900 dark:text-purple-100 mt-1 whitespace-pre-line">{quotation.receiver_address}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timestamps */}
+                      <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 pt-2 border-t border-gray-200 dark:border-slate-700">
+                        <span>Created: {formatDate(quotation.created_at)}</span>
+                        {quotation.updated_at && <span>Updated: {formatDate(quotation.updated_at)}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <div className="text-center py-10">
                 <p className="text-gray-500 dark:text-slate-400">No quotation details available</p>
-          </div>
-        )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -52,6 +52,9 @@ interface QuotationData {
   shipping_country: string;
   shipping_city: string;
   shipping_method: string;
+  receiver_name?: string | null;
+  receiver_phone?: string | null;
+  receiver_address?: string | null;
 }
 
 // Receiver information interface
@@ -222,10 +225,10 @@ export default function ShipmentTrackingPage() {
           return;
         }
         
-        // Fetch related quotation data using only valid IDs
+        // Fetch related quotation data using only valid IDs, including receiver information
         const { data: quotationData, error: quotationError } = await supabase
           .from('quotations')
-          .select('id, quotation_id, product_name, image_url, shipping_country, shipping_city, shipping_method')
+          .select('id, quotation_id, product_name, image_url, shipping_country, shipping_city, shipping_method, receiver_name, receiver_phone, receiver_address')
           .in('id', quotationIds);
           
         if (quotationError) {
@@ -242,14 +245,19 @@ export default function ShipmentTrackingPage() {
           quotationsMap[quotation.id] = quotation;
         });
         
-        // Join the shipping data with quotation data and user data
+        // Join the shipping data with quotation data and user data, including receiver information
         const combinedData = shipmentsRows.map((shippingItem) => {
           const qId = shippingItem.quotation_id ?? undefined
           const uId = shippingItem.user_id ?? undefined
+          const quotation = qId ? (quotationsMap[qId] ?? null) : null
           return {
             ...shippingItem,
-            quotation: qId ? (quotationsMap[qId] ?? null) : null,
+            quotation: quotation,
             user: uId ? (usersMap[uId] ?? null) : null,
+            // Use receiver info from quotation if available, otherwise from shipping table
+            receiver_name: quotation?.receiver_name || shippingItem.receiver_name || null,
+            receiver_phone: quotation?.receiver_phone || shippingItem.receiver_phone || null,
+            receiver_address: quotation?.receiver_address || shippingItem.receiver_address || null,
           }
         });
         
@@ -606,9 +614,9 @@ export default function ShipmentTrackingPage() {
       location: selectedShipment.location || "",
       estimated_delivery: selectedShipment.estimated_delivery || "",
       delivered_at: selectedShipment.delivered_at,
-      receiver_name: selectedShipment.receiver_name || "",
-      receiver_phone: selectedShipment.receiver_phone || "",
-      receiver_address: selectedShipment.receiver_address || "",
+      receiver_name: selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name || "",
+      receiver_phone: selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone || "",
+      receiver_address: selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address || "",
       origin: "China", // Default value
       destination_country: selectedShipment.quotation?.shipping_country || "",
       destination_city: selectedShipment.quotation?.shipping_city || ""
@@ -1054,106 +1062,120 @@ export default function ShipmentTrackingPage() {
               </div>
             </div>
 
-            {/* Receiver Information Section */}
-              <div className="mt-6 p-4 border border-gray-100 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-800 dark:text-white">Receiver Information</h3>
-                {!isEditingDetails && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={startEditingDetails}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Edit Details
-                  </Button>
+            {/* Receiver Information Section - Enhanced to match payment page style */}
+            {(selectedShipment.receiver_name || selectedShipment.receiver_phone || selectedShipment.receiver_address || selectedShipment.quotation?.receiver_name || selectedShipment.quotation?.receiver_phone || selectedShipment.quotation?.receiver_address) && (
+              <div className="mt-6 bg-purple-50 dark:bg-purple-900/20 border dark:border-purple-800 rounded-lg p-6 md:p-8" style={{ borderColor: 'var(--color-amber-50)' }}>
+                <div className="flex justify-between items-center mb-6">
+                  <h4 className="font-semibold dark:text-purple-100" style={{ color: 'var(--color-black)' }}>Receiver Information</h4>
+                  {!isEditingDetails && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={startEditingDetails}
+                      className="border-purple-300 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/40"
+                      style={{ color: 'var(--color-black)' }}
+                    >
+                      Edit Details
+                    </Button>
+                  )}
+                </div>
+                
+                {isEditingDetails ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Name</label>
+                      <input
+                        type="text"
+                        name="receiver_name"
+                        value={editedShipment.receiver_name}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's name"
+                        disabled={isSavingDetails}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Phone Number</label>
+                      <input
+                        type="text"
+                        name="receiver_phone"
+                        value={editedShipment.receiver_phone}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's phone"
+                        disabled={isSavingDetails}
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm text-purple-700 dark:text-purple-300 mb-2">Address</label>
+                      <textarea
+                        name="receiver_address"
+                        value={editedShipment.receiver_address}
+                        onChange={handleDetailsChange}
+                        className="w-full p-3 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-purple-900/40 dark:border-purple-700 dark:text-white"
+                        placeholder="Receiver's address"
+                        rows={3}
+                        disabled={isSavingDetails}
+                      ></textarea>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-sm">
+                    {(selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name) && (
+                      <div className="flex justify-between items-start gap-4 py-1">
+                        <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Name:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1" style={{ color: 'var(--color-black)' }}>
+                          {selectedShipment.receiver_name || selectedShipment.quotation?.receiver_name || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone) && (
+                      <div className="flex justify-between items-start gap-4 py-1">
+                        <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Phone:</span>
+                        <span className="font-medium dark:text-purple-100 text-right flex-1" style={{ color: 'var(--color-black)' }}>
+                          {selectedShipment.receiver_phone || selectedShipment.quotation?.receiver_phone || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                    {(selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address) && (
+                      <div className="pt-1">
+                        <div className="mb-2">
+                          <span className="dark:text-purple-300 font-medium" style={{ color: 'var(--color-black)' }}>Address:</span>
+                        </div>
+                        <p className="dark:text-purple-100 whitespace-pre-line leading-relaxed" style={{ color: 'var(--color-black)' }}>
+                          {selectedShipment.receiver_address || selectedShipment.quotation?.receiver_address || 'N/A'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
-              
-              {isEditingDetails ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Name</label>
-                    <input
-                      type="text"
-                      name="receiver_name"
-                      value={editedShipment.receiver_name}
-                      onChange={handleDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Receiver's name"
-                      disabled={isSavingDetails}
-                    />
+                
+                {detailsError && (
+                  <div className="mt-4 text-sm text-red-600 dark:text-red-400">
+                    {detailsError}
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Phone Number</label>
-                    <input
-                      type="text"
-                      name="receiver_phone"
-                      value={editedShipment.receiver_phone}
-                      onChange={handleDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Receiver's phone"
-                      disabled={isSavingDetails}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Address</label>
-                    <textarea
-                      name="receiver_address"
-                      value={editedShipment.receiver_address}
-                      onChange={handleDetailsChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Receiver's address"
-                      rows={3}
-                      disabled={isSavingDetails}
-                    ></textarea>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{selectedShipment.receiver_name || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Phone Number</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{selectedShipment.receiver_phone || "Not provided"}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Address</p>
-                    <p className="font-medium text-gray-900 dark:text-white whitespace-pre-line">
-                      {selectedShipment.receiver_address || "Not provided"}
-                    </p>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {detailsError && (
-                <div className="mt-4 text-sm text-red-600 dark:text-red-400">
-                  {detailsError}
-              </div>
-            )}
-
-              {isEditingDetails && (
-                <div className="mt-6 flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditingDetails(false)}
-                    disabled={isSavingDetails}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleSaveDetails}
-                    disabled={isSavingDetails}
-                    className={isSavingDetails ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
-                  >
-                    {isSavingDetails ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Saving...
+                {isEditingDetails && (
+                  <div className="mt-6 flex justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingDetails(false)}
+                      disabled={isSavingDetails}
+                      className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveDetails}
+                      disabled={isSavingDetails}
+                      className={isSavingDetails ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+                    >
+                      {isSavingDetails ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Saving...
                       </>
                     ) : (
                       "Save Changes"
@@ -1161,7 +1183,8 @@ export default function ShipmentTrackingPage() {
                   </Button>
                 </div>
               )}
-            </div>
+              </div>
+            )}
 
             {/* Image Gallery Section */}
               <div className="mt-6">
