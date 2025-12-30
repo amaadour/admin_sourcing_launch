@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Button from "@/components/ui/button/Button";
 import { useAuth } from "@/context/AuthContext";
+import { Modal } from "@/components/ui/modal";
+import Badge from "@/components/ui/badge/Badge";
 
 interface PaymentInfo {
   id: string;
@@ -71,6 +73,12 @@ export default function PaymentPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Quotation details modal states
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
+  const [selectedPaymentForQuotation, setSelectedPaymentForQuotation] = useState<PaymentInfo | null>(null);
+  const [fullQuotationDetails, setFullQuotationDetails] = useState<any[]>([]);
+  const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
 
   const fetchAllQuotationDetails = useCallback(async (paymentsData: PaymentInfo[]) => {
     const quotationMap: Record<string, QuotationInfo[]> = {};
@@ -748,6 +756,50 @@ export default function PaymentPage() {
     }
   };
 
+  // Open quotation details modal and fetch full details
+  const openQuotationDetailsModal = async (payment: PaymentInfo) => {
+    setSelectedPaymentForQuotation(payment);
+    setShowQuotationModal(true);
+    setFullQuotationDetails([]);
+    
+    if (payment.quotations && payment.quotations.length > 0) {
+      setLoadingQuotationDetails(true);
+      try {
+        // Filter valid UUIDs
+        const validQuotationIds = payment.quotations.filter(qId => {
+          return typeof qId === 'string' && 
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(qId);
+        });
+
+        if (validQuotationIds.length > 0) {
+          // Fetch all quotation details
+          const { data: quotationData, error } = await supabase
+            .from('quotations')
+            .select('*')
+            .in('id', validQuotationIds);
+
+          if (error) {
+            console.error("Error fetching quotation details:", error);
+          } else if (quotationData) {
+            setFullQuotationDetails(quotationData);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching quotation details:", error);
+      } finally {
+        setLoadingQuotationDetails(false);
+      }
+    }
+  };
+
+  // Get status badge color
+  const getStatusBadgeColor = (status: string): "primary" | "success" | "warning" | "info" | "error" => {
+    if (status === "Approved") return "success";
+    if (status === "Rejected") return "error";
+    if (status === "Pending") return "warning";
+    return "info";
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -977,18 +1029,6 @@ export default function PaymentPage() {
                         {payment.status}
                       </span>
                     </div>
-                    {payment.quotations && payment.quotations.length > 0 && (
-                      <div className="mt-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Quotation IDs:</span>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {payment.quotations.map((qId) => (
-                            <span key={qId} className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded-full">
-                              {qId}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex flex-col md:items-end gap-2">
@@ -1004,12 +1044,12 @@ export default function PaymentPage() {
                       </Button>
                     
                     <Button
-                      onClick={() => toggleExpandPayment(payment.id)}
+                      onClick={() => openQuotationDetailsModal(payment)}
                       variant="outline"
                       size="sm"
                       className="text-[#1E88E5] border-[#1E88E5] hover:bg-blue-50 dark:text-blue-400 dark:border-blue-400"
                     >
-                      {expandedPayment === payment.id ? 'Hide Details' : 'View Details'}
+                      View Details
                     </Button>
                   </div>
                 </div>
@@ -1090,6 +1130,284 @@ export default function PaymentPage() {
             </div>
           </div>
         )}
+
+      {/* Quotation Details Modal */}
+      <Modal
+        isOpen={showQuotationModal}
+        onClose={() => setShowQuotationModal(false)}
+        showCloseButton={false}
+        className="max-w-4xl mx-4 md:mx-auto"
+      >
+        {selectedPaymentForQuotation && (
+          <div className="flex flex-col h-full max-h-[85vh]">
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Quotation Details</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Payment: <span className="font-medium text-gray-900 dark:text-white">${selectedPaymentForQuotation.amount.toFixed(2)}</span>
+                  {selectedPaymentForQuotation.quotations && selectedPaymentForQuotation.quotations.length > 0 && (
+                    <span className="ml-2">({selectedPaymentForQuotation.quotations.length} quotation{selectedPaymentForQuotation.quotations.length > 1 ? 's' : ''})</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuotationModal(false)}
+                className="ml-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-700 active:scale-95 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-white"
+                aria-label="Close modal"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="stroke-current"
+                >
+                  <path
+                    d="M18 6L6 18M6 6L18 18"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 min-h-0">
+              {loadingQuotationDetails ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600 dark:text-gray-400">Loading quotation details...</p>
+                  </div>
+                </div>
+              ) : fullQuotationDetails.length > 0 ? (
+                <div className="space-y-6">
+                  {fullQuotationDetails.map((quotation, index) => (
+                    <div key={quotation.id || index} className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                      {/* Product Information */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                          {quotation.image_url && (
+                            <div className="relative h-56 w-full overflow-hidden rounded-xl mb-4 border-2 border-gray-200 dark:border-gray-700 shadow-md">
+                              <Image
+                                src={quotation.image_url}
+                                alt={quotation.product_name || "Product"}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          )}
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{quotation.product_name || "Product"}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Quotation ID: <span className="font-medium text-gray-900 dark:text-white">{quotation.quotation_id || "N/A"}</span>
+                          </p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Status</p>
+                            <Badge color={getStatusBadgeColor(quotation.status)} size="sm">
+                              {quotation.status || "Not Available"}
+                            </Badge>
+                          </div>
+
+                          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Quantity</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{quotation.quantity || "N/A"}</p>
+                          </div>
+
+                          {quotation.created_at && (
+                            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Created</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {new Date(quotation.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Shipping Information */}
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          Shipping Information
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Country</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.shipping_country || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">City</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.shipping_city || "N/A"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Method</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.shipping_method || "N/A"}</p>
+                          </div>
+                          {quotation.service_type && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Service Type</p>
+                              <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.service_type}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Receiver Address */}
+                      {(quotation.receiver_name || quotation.receiver_phone || quotation.receiver_address) && (
+                        <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
+                          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Receiver Address
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {quotation.receiver_name && (
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Name</p>
+                                <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.receiver_name}</p>
+                              </div>
+                            )}
+                            {quotation.receiver_phone && (
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</p>
+                                <p className="text-base font-semibold text-gray-900 dark:text-white">{quotation.receiver_phone}</p>
+                              </div>
+                            )}
+                            {quotation.receiver_address && (
+                              <div className="md:col-span-2">
+                                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Address</p>
+                                <p className="text-base font-medium text-gray-900 dark:text-white whitespace-pre-line">{quotation.receiver_address}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Selected Pricing Option */}
+                      {quotation.selected_option && (() => {
+                        const optionNum = quotation.selected_option;
+                        const title = quotation[`title_option${optionNum}`];
+                        const totalPrice = quotation[`total_price_option${optionNum}`];
+                        const unitPrice = quotation[`unit_price_option${optionNum}`];
+                        const deliveryTime = quotation[`delivery_time_option${optionNum}`];
+                        const description = quotation[`description_option${optionNum}`];
+                        const priceDescription = quotation[`price_description_option${optionNum}`];
+                        const quantity = Number(quotation.quantity) || 0;
+                        const calculatedTotal = unitPrice ? Number(unitPrice) * quantity : null;
+
+                        if (!title && !totalPrice) return null;
+
+                        return (
+                          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Selected Pricing Option
+                            </h4>
+                            <div className="rounded-lg p-4 border-2 bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400">
+                              <div className="flex items-center justify-between mb-4">
+                                <h5 className="text-base font-bold text-gray-900 dark:text-white">
+                                  Option {optionNum}: {title || "N/A"}
+                                </h5>
+                                <Badge color="primary" size="sm">Selected</Badge>
+                              </div>
+                              
+                              {/* Price Calculation */}
+                              {unitPrice && quantity > 0 && (
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border border-gray-200 dark:border-gray-700">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-600 dark:text-gray-400">Unit Price</span>
+                                      <span className="text-base font-semibold text-gray-900 dark:text-white">${Number(unitPrice).toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-600 dark:text-gray-400">Quantity</span>
+                                      <span className="text-base font-semibold text-gray-900 dark:text-white">× {quantity}</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-base font-bold text-gray-900 dark:text-white">Total Paid</span>
+                                        <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                          ${calculatedTotal ? calculatedTotal.toFixed(2) : (totalPrice ? Number(totalPrice).toFixed(2) : "0.00")}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {deliveryTime && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Delivery Time</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{deliveryTime}</p>
+                                  </div>
+                                )}
+                                {quotation[`unit_weight_option${optionNum}`] && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Weight</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{quotation[`unit_weight_option${optionNum}`]}g</p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {description && (
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{description}</p>
+                                </div>
+                              )}
+                              {priceDescription && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Price Description</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{priceDescription}</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {quotation.Quotation_fees && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-between items-center">
+                                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Quotation Fees</p>
+                                  <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(quotation.Quotation_fees).toFixed(2)}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 dark:text-gray-400">No quotation details available</p>
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="flex justify-end p-5 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
+              <button
+                onClick={() => setShowQuotationModal(false)}
+                className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-300 font-medium shadow-sm hover:shadow-md"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 } 

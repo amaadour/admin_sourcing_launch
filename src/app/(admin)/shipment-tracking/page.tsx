@@ -32,6 +32,7 @@ interface ShipmentTrackingData {
   estimated_delivery: string | null;
   created_at: string;
   user_id: string | null;
+  label?: string | null;
   // Related quotation data
   quotation?: QuotationData | null;
   receiver_name?: string;
@@ -93,6 +94,15 @@ export default function ShipmentTrackingPage() {
   // Image modal states
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
+
+  // Label modal states
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelText, setLabelText] = useState("");
+  const [isSavingLabel, setIsSavingLabel] = useState(false);
+
+  // Full quotation details state
+  const [fullQuotationDetails, setFullQuotationDetails] = useState<any>(null);
+  const [loadingQuotationDetails, setLoadingQuotationDetails] = useState(false);
 
   // Fetch shipment data from Supabase - get user's shipments
   useEffect(() => {
@@ -262,9 +272,93 @@ export default function ShipmentTrackingPage() {
   };
 
   // View shipment details
-  const viewShipmentDetails = (shipment: ShipmentTrackingData) => {
+  const viewShipmentDetails = async (shipment: ShipmentTrackingData) => {
     setSelectedShipment(shipment);
+    setLabelText(shipment.label || "");
     setShowDetailsModal(true);
+    setFullQuotationDetails(null);
+    
+    // Fetch full quotation details from Supabase
+    if (shipment.quotation_id) {
+      setLoadingQuotationDetails(true);
+      try {
+        const { data: quotationData, error } = await supabase
+          .from('quotations')
+          .select('*')
+          .eq('id', shipment.quotation_id)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching quotation details:", error);
+        } else if (quotationData) {
+          setFullQuotationDetails(quotationData);
+        }
+      } catch (error) {
+        console.error("Error fetching quotation details:", error);
+      } finally {
+        setLoadingQuotationDetails(false);
+      }
+    }
+  };
+
+  // Open label modal
+  const openLabelModal = (shipment?: ShipmentTrackingData) => {
+    const targetShipment = shipment || selectedShipment;
+    if (targetShipment) {
+      setSelectedShipment(targetShipment);
+      setLabelText(targetShipment.label || "");
+      setShowLabelModal(true);
+    }
+  };
+
+  // Save label
+  const handleSaveLabel = async () => {
+    if (!selectedShipment || !user?.id) {
+      return;
+    }
+
+    setIsSavingLabel(true);
+    try {
+      const { error } = await supabase
+        .from('shipping')
+        .update({ label: labelText.trim() || null })
+        .eq('id', selectedShipment.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
+      setShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id
+            ? { ...shipment, label: labelText.trim() || null }
+            : shipment
+        )
+      );
+
+      setFilteredShipmentData(prevData =>
+        prevData.map(shipment =>
+          shipment.id === selectedShipment.id
+            ? { ...shipment, label: labelText.trim() || null }
+            : shipment
+        )
+      );
+
+      if (selectedShipment) {
+        setSelectedShipment({
+          ...selectedShipment,
+          label: labelText.trim() || null
+        });
+      }
+
+      setShowLabelModal(false);
+    } catch (err) {
+      console.error("Error saving label:", err);
+      alert("Failed to save label. Please try again.");
+    } finally {
+      setIsSavingLabel(false);
+    }
   };
 
   // Open receiver information modal
@@ -683,6 +777,39 @@ export default function ShipmentTrackingPage() {
                 </div>
               )}
 
+              {/* Carton Section */}
+              <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    Carton
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                    onClick={openLabelModal}
+                  >
+                    Label
+                  </Button>
+                </div>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  {selectedShipment.label ? (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Label</p>
+                      <p className="text-base font-medium text-gray-900 dark:text-white">{selectedShipment.label}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No label added yet</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click the Label button to add one</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Image Gallery Section - Show if images are available */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -824,6 +951,228 @@ export default function ShipmentTrackingPage() {
                   </div>
                 )}
               </div>
+
+              {/* Full Quotation Details Section */}
+              {loadingQuotationDetails ? (
+                <div className="mb-6 bg-gray-50 dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 text-center">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400">Loading quotation details...</p>
+                </div>
+              ) : fullQuotationDetails ? (
+                <div className="mb-6 space-y-6">
+                  {/* Complete Quotation Information */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-blue-200 dark:border-gray-700">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Complete Quotation Details
+                    </h3>
+
+                    {/* Product Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Product Name</p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.product_name || "N/A"}</p>
+                      </div>
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Quantity</p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.quantity || "N/A"}</p>
+                      </div>
+                      {fullQuotationDetails.product_url && (
+                        <div className="md:col-span-2 bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Product URL</p>
+                          <a href={fullQuotationDetails.product_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all">
+                            {fullQuotationDetails.product_url}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Shipping Information */}
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Shipping Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Country</p>
+                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_country || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">City</p>
+                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_city || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Method</p>
+                          <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.shipping_method || "N/A"}</p>
+                        </div>
+                        {fullQuotationDetails.service_type && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Service Type</p>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.service_type}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Receiver Address from Quotation */}
+                    {(fullQuotationDetails.receiver_name || fullQuotationDetails.receiver_phone || fullQuotationDetails.receiver_address) && (
+                      <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 mb-6">
+                        <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          Receiver Address (from Quotation)
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {fullQuotationDetails.receiver_name && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Name</p>
+                              <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.receiver_name}</p>
+                            </div>
+                          )}
+                          {fullQuotationDetails.receiver_phone && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Phone</p>
+                              <p className="text-base font-semibold text-gray-900 dark:text-white">{fullQuotationDetails.receiver_phone}</p>
+                            </div>
+                          )}
+                          {fullQuotationDetails.receiver_address && (
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Address</p>
+                              <p className="text-base font-medium text-gray-900 dark:text-white whitespace-pre-line">{fullQuotationDetails.receiver_address}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pricing Options */}
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Pricing Options
+                      </h4>
+                      <div className="space-y-4">
+                        {[1, 2, 3].map((optionNum) => {
+                          const title = fullQuotationDetails[`title_option${optionNum}`];
+                          const totalPrice = fullQuotationDetails[`total_price_option${optionNum}`];
+                          const unitPrice = fullQuotationDetails[`unit_price_option${optionNum}`];
+                          const deliveryTime = fullQuotationDetails[`delivery_time_option${optionNum}`];
+                          const description = fullQuotationDetails[`description_option${optionNum}`];
+                          const priceDescription = fullQuotationDetails[`price_description_option${optionNum}`];
+                          const isSelected = fullQuotationDetails.selected_option === optionNum;
+
+                          if (!title && !totalPrice) return null;
+
+                          return (
+                            <div
+                              key={optionNum}
+                              className={`rounded-lg p-4 border-2 ${
+                                isSelected
+                                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400"
+                                  : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="text-base font-bold text-gray-900 dark:text-white">
+                                  Option {optionNum}: {title || "N/A"}
+                                </h5>
+                                {isSelected && (
+                                  <Badge color="primary" size="sm">Selected</Badge>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {totalPrice && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Price</p>
+                                    <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(totalPrice).toFixed(2)}</p>
+                                  </div>
+                                )}
+                                {unitPrice && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Price</p>
+                                    <p className="text-base font-semibold text-gray-900 dark:text-white">${Number(unitPrice).toFixed(2)}</p>
+                                  </div>
+                                )}
+                                {deliveryTime && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Delivery Time</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{deliveryTime}</p>
+                                  </div>
+                                )}
+                                {fullQuotationDetails[`unit_weight_option${optionNum}`] && (
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Unit Weight</p>
+                                    <p className="text-base font-medium text-gray-900 dark:text-white">{fullQuotationDetails[`unit_weight_option${optionNum}`]}g</p>
+                                  </div>
+                                )}
+                              </div>
+                              {description && (
+                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{description}</p>
+                                </div>
+                              )}
+                              {priceDescription && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Price Description</p>
+                                  <p className="text-sm text-gray-700 dark:text-gray-300">{priceDescription}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {fullQuotationDetails.Quotation_fees && (
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex justify-between items-center">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Quotation Fees</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">${Number(fullQuotationDetails.Quotation_fees).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Additional Information */}
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Additional Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 mb-1">Quotation ID</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{fullQuotationDetails.quotation_id || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 mb-1">Status</p>
+                          <Badge color={getStatusBadgeColor(fullQuotationDetails.status)} size="sm">
+                            {fullQuotationDetails.status || "N/A"}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 mb-1">Created At</p>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {fullQuotationDetails.created_at ? new Date(fullQuotationDetails.created_at).toLocaleString() : "N/A"}
+                          </p>
+                        </div>
+                        {fullQuotationDetails.updated_at && (
+                          <div>
+                            <p className="text-gray-500 dark:text-gray-400 mb-1">Updated At</p>
+                            <p className="font-medium text-gray-900 dark:text-white">
+                              {new Date(fullQuotationDetails.updated_at).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               
             </div>
             
@@ -838,6 +1187,71 @@ export default function ShipmentTrackingPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Label Modal */}
+      <Modal 
+        isOpen={showLabelModal}
+        onClose={() => !isSavingLabel && setShowLabelModal(false)}
+        className="max-w-md p-6 mx-4 md:mx-auto custom-scrollbar"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add Label</h3>
+          <button 
+            onClick={() => !isSavingLabel && setShowLabelModal(false)}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            disabled={isSavingLabel}
+          >
+          </button>
+        </div>
+        
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Add a label for this carton to help identify it.
+        </p>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Label Text
+            </label>
+            <input
+              type="text"
+              value={labelText}
+              onChange={(e) => setLabelText(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              placeholder="Enter label text"
+              disabled={isSavingLabel}
+            />
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <Button
+              onClick={() => !isSavingLabel && setShowLabelModal(false)}
+              variant="outline"
+              type="button"
+              disabled={isSavingLabel}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              onClick={handleSaveLabel}
+              disabled={isSavingLabel}
+              className={isSavingLabel ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+            >
+              {isSavingLabel ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                "Save Label"
+              )}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Receiver Information Modal */}
@@ -867,9 +1281,6 @@ export default function ShipmentTrackingPage() {
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 disabled={isSubmitting}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
               </button>
             </div>
             
@@ -1181,6 +1592,15 @@ export default function ShipmentTrackingPage() {
                             onClick={() => viewShipmentDetails(shipment)}
                           >
                             View Details
+                          </Button>
+                          
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                            onClick={() => openLabelModal(shipment)}
+                          >
+                            Label
                           </Button>
                           
                           {/* Add "Provide Shipping Info" button for shipments with "Waiting" status */}
