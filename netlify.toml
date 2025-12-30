@@ -8,6 +8,7 @@
 [build.environment]
   NEXT_USE_NETLIFY_EDGE = "true"
   NODE_VERSION = "18"
+  NPM_FLAGS = "--prefer-offline --no-audit"
 
 # Cache static assets
 [[headers]]
