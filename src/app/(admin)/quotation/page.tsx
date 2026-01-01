@@ -147,6 +147,9 @@ export default function QuotationPage() {
           created_at: string;
           status?: string;
           total_price_option1?: string | number;
+          unit_price_option1?: number;
+          unit_weight_option1?: number;
+          extra_images_option1?: string[];
           shipping_method?: string;
           shipping_city?: string;
           shipping_country?: string;
@@ -158,6 +161,9 @@ export default function QuotationPage() {
           delivery_time_option1?: string;
           description_option1?: string;
           total_price_option2?: string;
+          unit_price_option2?: number;
+          unit_weight_option2?: number;
+          extra_images_option2?: string[];
           title_option2?: string;
           image_option2?: string;
           price_description_option2?: string;
@@ -165,6 +171,9 @@ export default function QuotationPage() {
           description_option2?: string;
           title_option3?: string;
           total_price_option3?: string;
+          unit_price_option3?: number;
+          unit_weight_option3?: number;
+          extra_images_option3?: string[];
           image_option3?: string;
           price_description_option3?: string;
           delivery_time_option3?: string;
