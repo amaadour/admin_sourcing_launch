@@ -14,22 +14,19 @@ import { supabase } from "@/lib/supabase"
 
 interface PriceOptionsData {
   title_option1?: string;
-  image_option1: string | null;
-  image_option1_2?: string | null;
+  extra_images_option1?: string[];
   unit_price_option1?: number;
   unit_weight_option1?: number;
   delivery_time_option1?: string;
   description_option1?: string;
   title_option2?: string;
-  image_option2: string | null;
-  image_option2_2?: string | null;
+  extra_images_option2?: string[];
   unit_price_option2?: number;
   unit_weight_option2?: number;
   delivery_time_option2?: string;
   description_option2?: string;
   title_option3?: string;
-  image_option3: string | null;
-  image_option3_2?: string | null;
+  extra_images_option3?: string[];
   unit_price_option3?: number;
   unit_weight_option3?: number;
   delivery_time_option3?: string;
@@ -70,22 +67,19 @@ export default function PriceOptionsModal({
 
   const [formData, setFormData] = useState<PriceOptionsData>({
     title_option1: initialData?.title_option1 || "",
-    image_option1: initialData?.image_option1 || null,
-    image_option1_2: initialData?.image_option1_2 || null,
+    extra_images_option1: initialData?.extra_images_option1 || [],
     unit_price_option1: initialData?.unit_price_option1,
     unit_weight_option1: initialData?.unit_weight_option1,
     delivery_time_option1: initialData?.delivery_time_option1 || "",
     description_option1: initialData?.description_option1 || "",
     title_option2: initialData?.title_option2,
-    image_option2: initialData?.image_option2 || null,
-    image_option2_2: initialData?.image_option2_2 || null,
+    extra_images_option2: initialData?.extra_images_option2 || [],
     unit_price_option2: initialData?.unit_price_option2,
     unit_weight_option2: initialData?.unit_weight_option2,
     delivery_time_option2: initialData?.delivery_time_option2 || "",
     description_option2: initialData?.description_option2,
     title_option3: initialData?.title_option3,
-    image_option3: initialData?.image_option3 || null,
-    image_option3_2: initialData?.image_option3_2 || null,
+    extra_images_option3: initialData?.extra_images_option3 || [],
     unit_price_option3: initialData?.unit_price_option3,
     unit_weight_option3: initialData?.unit_weight_option3,
     delivery_time_option3: initialData?.delivery_time_option3 || "",
@@ -154,22 +148,22 @@ export default function PriceOptionsModal({
           
           // Set preview images and visibility options based on saved data
           
-          setShowOption2(!!parsedData.title_option2 || !!parsedData.image_option2 || 
+          setShowOption2(!!parsedData.title_option2 || (parsedData.extra_images_option2 && parsedData.extra_images_option2.length > 0) || 
             !!parsedData.unit_price_option2 || !!parsedData.delivery_time_option2 || 
             !!parsedData.description_option2);
           
-          setShowOption3(!!parsedData.title_option3 || !!parsedData.image_option3 || 
+          setShowOption3(!!parsedData.title_option3 || (parsedData.extra_images_option3 && parsedData.extra_images_option3.length > 0) || 
             !!parsedData.unit_price_option3 || !!parsedData.delivery_time_option3 || 
             !!parsedData.description_option3);
         } else if (initialData) {
           setFormData(initialData);
           
           
-          const hasOption2Data = initialData.title_option2 || initialData.image_option2 || 
+          const hasOption2Data = initialData.title_option2 || (initialData.extra_images_option2 && initialData.extra_images_option2.length > 0) || 
             initialData.unit_price_option2 || initialData.delivery_time_option2 || 
             initialData.description_option2;
           
-          const hasOption3Data = initialData.title_option3 || initialData.image_option3 || 
+          const hasOption3Data = initialData.title_option3 || (initialData.extra_images_option3 && initialData.extra_images_option3.length > 0) || 
             initialData.unit_price_option3 || initialData.delivery_time_option3 || 
             initialData.description_option3;
           
@@ -238,7 +232,7 @@ export default function PriceOptionsModal({
     }
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number, isExtra = false) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNumber: number) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
       customToast({
@@ -249,26 +243,24 @@ export default function PriceOptionsModal({
       return;
     }
 
-    // Check limit (max 10 files - images or videos) - only for main image fields
-    if (!isExtra) {
-      const currentImages = getAllImages(optionNumber);
-      const remainingSlots = 10 - currentImages.length;
-      if (remainingSlots <= 0) {
-        customToast({
-          variant: "destructive",
-          title: "Error",
-          description: "You can upload a maximum of 10 files per option"
-        });
-        return;
-      }
-      if (files.length > remainingSlots) {
-        customToast({
-          variant: "destructive",
-          title: "Error",
-          description: `You can only upload ${remainingSlots} more file${remainingSlots > 1 ? 's' : ''}. Please select fewer files.`
-        });
-        return;
-      }
+    // Check limit (max 10 files - images or videos)
+    const currentImages = getAllImages(optionNumber);
+    const remainingSlots = 10 - currentImages.length;
+    if (remainingSlots <= 0) {
+      customToast({
+        variant: "destructive",
+        title: "Error",
+        description: "You can upload a maximum of 10 files per option"
+      });
+      return;
+    }
+    if (files.length > remainingSlots) {
+      customToast({
+        variant: "destructive",
+        title: "Error",
+        description: `You can only upload ${remainingSlots} more file${remainingSlots > 1 ? 's' : ''}. Please select fewer files.`
+      });
+      return;
     }
 
     // Check file type - allow images and videos for all fields
@@ -324,7 +316,7 @@ export default function PriceOptionsModal({
           const fileExt = file.name.split(".").pop();
           const timestamp = Date.now() + i; // Add index to ensure uniqueness
           const uniqueId = `${timestamp}-${Math.random().toString(36).substring(2, 15)}`;
-          const fileName = `option${optionNumber}${isExtra ? '_2' : ''}-${uniqueId}.${fileExt}`;
+          const fileName = `option${optionNumber}-${uniqueId}.${fileExt}`;
 
           // Create unique path for each option
           const filePath = `price_options/${quotationId}/option${optionNumber}/${fileName}`;
@@ -359,23 +351,9 @@ export default function PriceOptionsModal({
 
       // Add all successfully uploaded images/videos to the form data
       if (uploadedUrls.length > 0) {
-        if (isExtra) {
-          // For extra images, add to the extra_images array
-          const fieldExtra = `extra_images_option${optionNumber}` as keyof PriceOptionsData;
-          setFormData(prev => {
-            const currentExtrasField = prev[fieldExtra];
-            const currentExtras = Array.isArray(currentExtrasField) ? currentExtrasField : [];
-            return {
-              ...prev,
-              [fieldExtra]: [...currentExtras, ...uploadedUrls]
-            };
-          });
-        } else {
-          // For main images, add to the existing images array
-          const currentImages = getAllImages(optionNumber);
-          const newImages = [...currentImages, ...uploadedUrls];
-          updateOptionImages(optionNumber, newImages);
-        }
+        const currentImages = getAllImages(optionNumber);
+        const newImages = [...currentImages, ...uploadedUrls];
+        updateOptionImages(optionNumber, newImages);
       }
 
       // Show success/error toast
@@ -420,22 +398,19 @@ export default function PriceOptionsModal({
 
       const updateData: PriceOptionsData = {
         title_option1: formData.title_option1,
-        image_option1: formData.image_option1,
-        image_option1_2: formData.image_option1_2,
+        extra_images_option1: formData.extra_images_option1 || [],
         unit_price_option1: formData.unit_price_option1,
         unit_weight_option1: formData.unit_weight_option1,
         delivery_time_option1: formData.delivery_time_option1,
         description_option1: formData.description_option1,
         title_option2: formData.title_option2,
-        image_option2: formData.image_option2,
-        image_option2_2: formData.image_option2_2,
+        extra_images_option2: formData.extra_images_option2 || [],
         unit_price_option2: formData.unit_price_option2,
         unit_weight_option2: formData.unit_weight_option2,
         delivery_time_option2: formData.delivery_time_option2,
         description_option2: formData.description_option2,
         title_option3: formData.title_option3,
-        image_option3: formData.image_option3,
-        image_option3_2: formData.image_option3_2,
+        extra_images_option3: formData.extra_images_option3 || [],
         unit_price_option3: formData.unit_price_option3,
         unit_weight_option3: formData.unit_weight_option3,
         delivery_time_option3: formData.delivery_time_option3,
@@ -479,29 +454,17 @@ export default function PriceOptionsModal({
 
   // Helper to get all images for an option as a flat array
   const getAllImages = (optionNum: number): string[] => {
-    const list: string[] = [];
-    const img1 = formData[`image_option${optionNum}` as keyof PriceOptionsData] as string | null;
-    const img2 = formData[`image_option${optionNum}_2` as keyof PriceOptionsData] as string | null;
     const extrasField = formData[`extra_images_option${optionNum}` as keyof PriceOptionsData];
-    const extras = Array.isArray(extrasField) ? extrasField : [];
-
-    if (img1) list.push(img1);
-    if (img2) list.push(img2);
-    if (extras && Array.isArray(extras)) list.push(...extras);
-    return list;
+    return Array.isArray(extrasField) ? extrasField : [];
   };
 
-  // Helper to distribute images back to columns
+  // Helper to update images for an option
   const updateOptionImages = (optionNum: number, images: string[]) => {
-    const field1 = `image_option${optionNum}` as keyof PriceOptionsData;
-    const field2 = `image_option${optionNum}_2` as keyof PriceOptionsData;
     const fieldExtra = `extra_images_option${optionNum}` as keyof PriceOptionsData;
 
     setFormData(prev => ({
       ...prev,
-      [field1]: images[0] || null,
-      [field2]: images[1] || null,
-      [fieldExtra]: images.slice(2)
+      [fieldExtra]: images
     }));
   };
 
