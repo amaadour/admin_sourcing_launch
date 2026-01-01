@@ -480,15 +480,21 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
         quotationId={quotation.id}
         initialData={{
           title_option1: quotation.title_option1 || quotation.product.name,
-          image_option1: quotation.image_option1 || quotation.product.image,
+          extra_images_option1: quotation.extra_images_option1 || [],
+          unit_price_option1: quotation.unit_price_option1,
+          unit_weight_option1: quotation.unit_weight_option1,
           delivery_time_option1: quotation.delivery_time_option1 || "",
           description_option1: quotation.description_option1 || "",
           title_option2: quotation.title_option2 || "",
-          image_option2: quotation.image_option2 || "",
+          extra_images_option2: quotation.extra_images_option2 || [],
+          unit_price_option2: quotation.unit_price_option2,
+          unit_weight_option2: quotation.unit_weight_option2,
           delivery_time_option2: quotation.delivery_time_option2 || "",
           description_option2: quotation.description_option2 || "",
           title_option3: quotation.title_option3 || "",
-          image_option3: quotation.image_option3 || "",
+          extra_images_option3: quotation.extra_images_option3 || [],
+          unit_price_option3: quotation.unit_price_option3,
+          unit_weight_option3: quotation.unit_weight_option3,
           delivery_time_option3: quotation.delivery_time_option3 || "",
           description_option3: quotation.description_option3 || ""
         }}

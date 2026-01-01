@@ -803,10 +803,24 @@ export default function QuotationPage() {
           onClose={() => setIsModalOpen(false)}
           quotationId={currentQuotation.id}
           initialData={{
-            title_option1: currentQuotation.product.name,
-            image_option1: currentQuotation.product.image,
-            image_option2: null,
-            image_option3: null
+            title_option1: currentQuotation.title_option1 || currentQuotation.product.name,
+            extra_images_option1: currentQuotation.extra_images_option1 || [],
+            unit_price_option1: currentQuotation.unit_price_option1,
+            unit_weight_option1: currentQuotation.unit_weight_option1,
+            delivery_time_option1: currentQuotation.delivery_time_option1 || "",
+            description_option1: currentQuotation.description_option1 || "",
+            title_option2: currentQuotation.title_option2 || "",
+            extra_images_option2: currentQuotation.extra_images_option2 || [],
+            unit_price_option2: currentQuotation.unit_price_option2,
+            unit_weight_option2: currentQuotation.unit_weight_option2,
+            delivery_time_option2: currentQuotation.delivery_time_option2 || "",
+            description_option2: currentQuotation.description_option2 || "",
+            title_option3: currentQuotation.title_option3 || "",
+            extra_images_option3: currentQuotation.extra_images_option3 || [],
+            unit_price_option3: currentQuotation.unit_price_option3,
+            unit_weight_option3: currentQuotation.unit_weight_option3,
+            delivery_time_option3: currentQuotation.delivery_time_option3 || "",
+            description_option3: currentQuotation.description_option3 || ""
           }}
           onUpdate={handleQuotationUpdate}
         />
