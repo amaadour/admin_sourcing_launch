@@ -89,42 +89,79 @@ export default function PriceOptionsModal({
   // Create a local storage key unique to this quotation
   const localStorageKey = `priceOptions_quotation_${quotationId}`;
 
-  // Fetch quantity from database when modal opens
+  // Fetch all price options data from database when modal opens
   useEffect(() => {
     if (isOpen && quotationId) {
-      const fetchQuantity = async () => {
+      const fetchPriceOptionsData = async () => {
         try {
           const { data, error } = await supabase
             .from('quotations')
-            .select('quantity, unit_price_option1, unit_price_option2, unit_price_option3')
+            .select(`
+              quantity,
+              title_option1, unit_price_option1, unit_weight_option1, delivery_time_option1, description_option1, extra_images_option1,
+              title_option2, unit_price_option2, unit_weight_option2, delivery_time_option2, description_option2, extra_images_option2,
+              title_option3, unit_price_option3, unit_weight_option3, delivery_time_option3, description_option3, extra_images_option3
+            `)
             .eq('id', quotationId)
             .single();
 
           if (error) {
-            console.error('Error fetching quotation quantity:', error);
+            console.error('Error fetching quotation data:', error);
             return;
           }
 
           if (data) {
             const quotationData = data as {
               quantity?: number | null;
+              title_option1?: string | null;
               unit_price_option1?: number | null;
+              unit_weight_option1?: number | null;
+              delivery_time_option1?: string | null;
+              description_option1?: string | null;
+              extra_images_option1?: string[] | null;
+              title_option2?: string | null;
               unit_price_option2?: number | null;
+              unit_weight_option2?: number | null;
+              delivery_time_option2?: string | null;
+              description_option2?: string | null;
+              extra_images_option2?: string[] | null;
+              title_option3?: string | null;
               unit_price_option3?: number | null;
+              unit_weight_option3?: number | null;
+              delivery_time_option3?: string | null;
+              description_option3?: string | null;
+              extra_images_option3?: string[] | null;
             };
             setQuantity(quotationData.quantity || 1);
-            // Update formData with unit prices from database if they exist and formData doesn't have them
+            
+            // Update formData with all fields from database
             setFormData(prev => {
               const updates: Partial<PriceOptionsData> = {};
-              if (quotationData.unit_price_option1 != null && prev.unit_price_option1 == null) {
-                updates.unit_price_option1 = Number(quotationData.unit_price_option1);
-              }
-              if (quotationData.unit_price_option2 != null && prev.unit_price_option2 == null) {
-                updates.unit_price_option2 = Number(quotationData.unit_price_option2);
-              }
-              if (quotationData.unit_price_option3 != null && prev.unit_price_option3 == null) {
-                updates.unit_price_option3 = Number(quotationData.unit_price_option3);
-              }
+              
+              // Option 1
+              if (quotationData.title_option1 != null) updates.title_option1 = quotationData.title_option1;
+              if (quotationData.unit_price_option1 != null) updates.unit_price_option1 = Number(quotationData.unit_price_option1);
+              if (quotationData.unit_weight_option1 != null) updates.unit_weight_option1 = Number(quotationData.unit_weight_option1);
+              if (quotationData.delivery_time_option1 != null) updates.delivery_time_option1 = quotationData.delivery_time_option1;
+              if (quotationData.description_option1 != null) updates.description_option1 = quotationData.description_option1;
+              if (quotationData.extra_images_option1 != null) updates.extra_images_option1 = quotationData.extra_images_option1;
+              
+              // Option 2
+              if (quotationData.title_option2 != null) updates.title_option2 = quotationData.title_option2;
+              if (quotationData.unit_price_option2 != null) updates.unit_price_option2 = Number(quotationData.unit_price_option2);
+              if (quotationData.unit_weight_option2 != null) updates.unit_weight_option2 = Number(quotationData.unit_weight_option2);
+              if (quotationData.delivery_time_option2 != null) updates.delivery_time_option2 = quotationData.delivery_time_option2;
+              if (quotationData.description_option2 != null) updates.description_option2 = quotationData.description_option2;
+              if (quotationData.extra_images_option2 != null) updates.extra_images_option2 = quotationData.extra_images_option2;
+              
+              // Option 3
+              if (quotationData.title_option3 != null) updates.title_option3 = quotationData.title_option3;
+              if (quotationData.unit_price_option3 != null) updates.unit_price_option3 = Number(quotationData.unit_price_option3);
+              if (quotationData.unit_weight_option3 != null) updates.unit_weight_option3 = Number(quotationData.unit_weight_option3);
+              if (quotationData.delivery_time_option3 != null) updates.delivery_time_option3 = quotationData.delivery_time_option3;
+              if (quotationData.description_option3 != null) updates.description_option3 = quotationData.description_option3;
+              if (quotationData.extra_images_option3 != null) updates.extra_images_option3 = quotationData.extra_images_option3;
+              
               return Object.keys(updates).length > 0 ? { ...prev, ...updates } : prev;
             });
           }
@@ -133,7 +170,7 @@ export default function PriceOptionsModal({
         }
       };
 
-      fetchQuantity();
+      fetchPriceOptionsData();
     }
   }, [isOpen, quotationId]);
 
