@@ -42,6 +42,9 @@ interface Quotation {
   image_option1: string | null;
   image_option2: string | null;
   image_option3: string | null;
+  extra_images_option1?: string[] | null;
+  extra_images_option2?: string[] | null;
+  extra_images_option3?: string[] | null;
   selected_option: number | null;
   status: string;
   service_type: string | null;
@@ -201,7 +204,7 @@ export default function PaymentPage() {
         if (quotationIds.length > 0) {
           const { data: quotationsDataById, error: quotationsErrorById } = await supabase
             .from('quotations')
-            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
+            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
             .in('id', quotationIds);
             
           if (quotationsErrorById) {
@@ -219,7 +222,7 @@ export default function PaymentPage() {
         if (referenceNumbers.length > 0) {
           const { data: quotationsDataByRef, error: quotationsErrorByRef } = await supabase
             .from('quotations')
-            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
+            .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, image_option1, image_option2, image_option3, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
             .in('quotation_id', referenceNumbers);
             
           if (quotationsErrorByRef) {
@@ -896,10 +899,18 @@ export default function PaymentPage() {
                               <p className="text-sm text-green-900 dark:text-green-100">{description}</p>
                             </div>
                           )}
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-4 gap-2">
                             <div>
                               <p className="text-sm text-green-700 dark:text-green-300">Unit Price:</p>
                               <p className="font-bold text-green-900 dark:text-green-100">{unitPrice ? formatAmount(unitPrice) : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300">Weight:</p>
+                              <p className="font-bold text-green-900 dark:text-green-100">
+                                {selectedOption === 1 ? (quotation.unit_weight_option1 ? `${quotation.unit_weight_option1}g` : 'N/A') :
+                                 selectedOption === 2 ? (quotation.unit_weight_option2 ? `${quotation.unit_weight_option2}g` : 'N/A') :
+                                 (quotation.unit_weight_option3 ? `${quotation.unit_weight_option3}g` : 'N/A')}
+                              </p>
                             </div>
                             <div>
                               <p className="text-sm text-green-700 dark:text-green-300">Quantity:</p>
@@ -918,6 +929,118 @@ export default function PaymentPage() {
                               <p className="font-medium text-green-900 dark:text-green-100">{deliveryTime}</p>
                             </div>
                           )}
+                        </div>
+                        
+                        {/* Images for selected option */}
+                        {(() => {
+                          const optionImages = selectedOption === 1 ? quotation.extra_images_option1 :
+                                             selectedOption === 2 ? quotation.extra_images_option2 :
+                                             quotation.extra_images_option3;
+                          const mainImage = selectedOption === 1 ? quotation.image_option1 :
+                                          selectedOption === 2 ? quotation.image_option2 :
+                                          quotation.image_option3;
+                          const allImages = [
+                            ...(mainImage ? [mainImage] : []),
+                            ...(optionImages && Array.isArray(optionImages) ? optionImages : [])
+                          ].filter(Boolean);
+                          
+                          if (allImages.length > 0) {
+                            return (
+                              <div className="mt-4">
+                                <p className="text-sm text-green-700 dark:text-green-300 mb-2">Option Images ({allImages.length}):</p>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {allImages.slice(0, 8).map((img, idx) => (
+                                    <div key={idx} className="relative aspect-square rounded-md overflow-hidden border border-green-200 dark:border-green-800">
+                                      <Image
+                                        src={img}
+                                        alt={`Option ${selectedOption} image ${idx + 1}`}
+                                        fill
+                                        className="object-cover cursor-pointer hover:opacity-90"
+                                        onClick={() => window.open(img, '_blank')}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+
+                      {/* All Price Options */}
+                      <div className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">All Price Options</h4>
+                        <div className="space-y-4">
+                          {[1, 2, 3].map((optNum) => {
+                            const optTitle = optNum === 1 ? quotation.title_option1 : optNum === 2 ? quotation.title_option2 : quotation.title_option3;
+                            const optPrice = optNum === 1 ? quotation.unit_price_option1 : optNum === 2 ? quotation.unit_price_option2 : quotation.unit_price_option3;
+                            const optWeight = optNum === 1 ? quotation.unit_weight_option1 : optNum === 2 ? quotation.unit_weight_option2 : quotation.unit_weight_option3;
+                            const optDelivery = optNum === 1 ? quotation.delivery_time_option1 : optNum === 2 ? quotation.delivery_time_option2 : quotation.delivery_time_option3;
+                            const optDesc = optNum === 1 ? quotation.description_option1 : optNum === 2 ? quotation.description_option2 : quotation.description_option3;
+                            const optImages = optNum === 1 ? quotation.extra_images_option1 : optNum === 2 ? quotation.extra_images_option2 : quotation.extra_images_option3;
+                            const optMainImage = optNum === 1 ? quotation.image_option1 : optNum === 2 ? quotation.image_option2 : quotation.image_option3;
+                            
+                            if (!optTitle && !optPrice && !optWeight) return null;
+                            
+                            const isSelected = selectedOption === optNum;
+                            const allOptImages = [
+                              ...(optMainImage ? [optMainImage] : []),
+                              ...(optImages && Array.isArray(optImages) ? optImages : [])
+                            ].filter(Boolean);
+                            
+                            return (
+                              <div key={optNum} className={`border rounded-lg p-3 ${isSelected ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-600'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <h5 className={`font-semibold ${isSelected ? 'text-green-900 dark:text-green-100' : 'text-gray-900 dark:text-slate-100'}`}>
+                                    Option {optNum} {isSelected && <span className="text-xs">(Selected)</span>}
+                                  </h5>
+                                </div>
+                                <div className="grid md:grid-cols-4 gap-3 text-sm">
+                                  <div>
+                                    <p className="text-gray-500 dark:text-slate-400">Title:</p>
+                                    <p className="font-medium text-gray-900 dark:text-slate-100">{optTitle || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 dark:text-slate-400">Unit Price:</p>
+                                    <p className="font-medium text-gray-900 dark:text-slate-100">{optPrice ? formatAmount(optPrice) : 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 dark:text-slate-400">Weight:</p>
+                                    <p className="font-medium text-gray-900 dark:text-slate-100">{optWeight ? `${optWeight}g` : 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500 dark:text-slate-400">Delivery:</p>
+                                    <p className="font-medium text-gray-900 dark:text-slate-100">{optDelivery || 'N/A'}</p>
+                                  </div>
+                                </div>
+                                {optDesc && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">Description:</p>
+                                    <p className="text-xs text-gray-700 dark:text-slate-300">{optDesc}</p>
+                                  </div>
+                                )}
+                                {allOptImages.length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Images ({allOptImages.length}):</p>
+                                    <div className="grid grid-cols-6 gap-1">
+                                      {allOptImages.slice(0, 6).map((img, idx) => (
+                                        <div key={idx} className="relative aspect-square rounded overflow-hidden border border-gray-200 dark:border-slate-600">
+                                          <Image
+                                            src={img}
+                                            alt={`Option ${optNum} image ${idx + 1}`}
+                                            fill
+                                            className="object-cover cursor-pointer hover:opacity-90"
+                                            onClick={() => window.open(img, '_blank')}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
