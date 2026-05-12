@@ -78,4 +78,19 @@ export interface QuotationData {
   receiver_address?: string;
   rejection_reason?: string | null;
   client_label?: string | null;
+  // Dual pricing + customization
+  is_customizable?: boolean;
+  customization_price?: number | null;
+  selected_version?: 'stock' | 'customized' | null;
+}
+
+export interface CustomizationFile {
+  id: string;
+  quotation_id: string;
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  created_at: string;
 } 

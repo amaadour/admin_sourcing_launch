@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { QuotationData } from "@/types/quotation";
+import { QuotationData, CustomizationFile } from "@/types/quotation";
 import { supabase } from "@/lib/supabase";
 import { customToast } from "@/components/ui/toast";
 import PriceOptionsModal from "./PriceOptionsModal";
@@ -25,6 +25,7 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
   const [isPriceOptionsModalOpen, setIsPriceOptionsModalOpen] = useState(false);
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [hasApprovedPayment, setHasApprovedPayment] = useState(false);
+  const [customizationFiles, setCustomizationFiles] = useState<CustomizationFile[]>([]);
   const [formData, setFormData] = useState({
     quotation_id: quotation.quotation_id || '',
     product_name: quotation.product.name,
@@ -42,6 +43,8 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
     receiver_address: quotation.receiver_address || '',
     rejection_reason: quotation.rejection_reason || '',
     client_label: quotation.client_label || '',
+    is_customizable: quotation.is_customizable || false,
+    customization_price: quotation.customization_price?.toString() || '',
   });
 
   React.useEffect(() => {
@@ -56,6 +59,40 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
       if (data && data.length > 0) setHasApprovedPayment(true);
     };
     checkApprovedPayment();
+  }, [quotation.id]);
+
+  // Fetch fresh customization fields from DB so they stay in sync with PriceOptionsModal
+  React.useEffect(() => {
+    const fetchCustomizationSettings = async () => {
+      if (!quotation.id) return;
+      const { data } = await supabase
+        .from('quotations')
+        .select('is_customizable, customization_price')
+        .eq('id', quotation.id)
+        .single();
+      if (data) {
+        const d = data as { is_customizable?: boolean | null; customization_price?: number | null };
+        setFormData(prev => ({
+          ...prev,
+          is_customizable: !!d.is_customizable,
+          customization_price: d.customization_price?.toString() || '',
+        }));
+      }
+    };
+    fetchCustomizationSettings();
+  }, [quotation.id]);
+
+  React.useEffect(() => {
+    const fetchCustomizationFiles = async () => {
+      if (!quotation.id) return;
+      const { data } = await supabase
+        .from('customization_files')
+        .select('*')
+        .eq('quotation_id', quotation.id)
+        .order('created_at', { ascending: false });
+      if (data) setCustomizationFiles(data as CustomizationFile[]);
+    };
+    fetchCustomizationFiles();
   }, [quotation.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -127,6 +164,10 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
         receiver_address: formData.receiver_address || null,
         rejection_reason: formData.status === 'Rejected' ? formData.rejection_reason.trim() : null,
         client_label: hasApprovedPayment ? (quotation.client_label || null) : (formData.client_label.trim() || null),
+        is_customizable: formData.is_customizable,
+        customization_price: formData.is_customizable && formData.customization_price.trim()
+          ? parseFloat(formData.customization_price)
+          : null,
         updated_at: new Date().toISOString()
       };
 
@@ -187,339 +228,264 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
   const isValidImageUrl = (url: string | null | undefined) =>
     !!url && url.startsWith('https://cfhochnjniddaztgwrbk.supabase.co/');
 
+  // Reusable input class
+  const inp = "w-full rounded-lg border border-[#BBDEFB] bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200";
+  const lbl = "block text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide mb-1.5";
+
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Quotation</h2>
-                <button
-                  onClick={onClose}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-[#E3F2FD] dark:bg-blue-900/20 border-b border-[#BBDEFB] flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-[#0D47A1] dark:text-blue-300">Edit Quotation</h2>
+                <p className="text-xs text-[#0D47A1]/60 mt-0.5">{formData.quotation_id} — {formData.product_name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-[#BBDEFB] text-[#0D47A1] hover:bg-[#BBDEFB] transition-all active:scale-95"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6L18 18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <form onSubmit={handleSubmit} id="edit-quotation-form" className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900 p-5 space-y-4">
+
+              {/* Product Information */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Product Information</h3>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={lbl}>Quotation ID</label>
+                    <input type="text" name="quotation_id" value={formData.quotation_id} onChange={handleChange} className={`${inp} bg-[#E3F2FD]/50 text-[#0D47A1] font-mono cursor-not-allowed`} required readOnly={!!quotation.quotation_id} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Service Type</label>
+                    <div className={`${inp} bg-[#E3F2FD]/50 text-[#0D47A1]`}>{formData.service_type || '—'}</div>
+                  </div>
+                  <div>
+                    <label className={lbl}>Product Name</label>
+                    <input type="text" name="product_name" value={formData.product_name} onChange={handleChange} className={inp} required />
+                  </div>
+                  <div>
+                    <label className={lbl}>Quantity</label>
+                    <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} className={inp} required min="1" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className={lbl}>Product URL</label>
+                    <input type="text" name="product_url" value={formData.product_url} onChange={handleChange} className={inp} placeholder="https://..." />
+                  </div>
+                </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Quotation ID
-                      </label>
-                      <input
-                        type="text"
-                        name="quotation_id"
-                        value={formData.quotation_id}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                        readOnly={!!quotation.quotation_id}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Product Name
-                      </label>
-                      <input
-                        type="text"
-                        name="product_name"
-                        value={formData.product_name}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Status
-                      </label>
-                      <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
-                    </div>
-                    {formData.status === 'Rejected' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Rejection Reason <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          name="rejection_reason"
-                          value={formData.rejection_reason}
-                          onChange={handleChange}
-                          rows={3}
-                          placeholder="Explain why this quotation is being rejected..."
-                          className="w-full rounded-lg border border-red-300 bg-white px-4 py-2.5 text-gray-700 focus:border-red-500 focus:ring-2 focus:ring-red-500 dark:border-red-700 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-red-400 resize-none"
-                          required
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Service Type
-                      </label>
-                      <div className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                        Service Type: {formData.service_type ? formData.service_type : "N/A"}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Product URL
-                      </label>
-                      <input
-                        type="text"
-                        name="product_url"
-                        value={formData.product_url}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Shipping Method
-                      </label>
-                      <select
-                        name="shipping_method"
-                        value={formData.shipping_method}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                      >
-                        <option value="Sea">Sea</option>
-                        <option value="Air">Air</option>
-                        <option value="Train">Train</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Shipping Country
-                      </label>
-                      <input
-                        type="text"
-                        name="shipping_country"
-                        value={formData.shipping_country}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Shipping City
-                      </label>
-                      <input
-                        type="text"
-                        name="shipping_city"
-                        value={formData.shipping_city}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        required
-                      />
-                    </div>
-                  </div>
+              {/* Status */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Status</h3>
                 </div>
-
-                {/* Client Label */}
-                <div className="border border-[#0D47A1] dark:border-blue-700 rounded-lg p-4 bg-[#E3F2FD] dark:bg-blue-900/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-[#0D47A1]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2z" />
-                      </svg>
-                      <span className="text-sm font-semibold text-[#0D47A1] dark:text-blue-300">Client Shipping Label</span>
-                    </div>
-                    {hasApprovedPayment && (
-                      <span className="flex items-center gap-1 text-xs font-medium text-[#0D47A1] bg-white border border-[#0D47A1] px-2 py-0.5 rounded-full">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Locked – Payment Approved
-                      </span>
-                    )}
+                <div className="p-4 space-y-3">
+                  <div className="flex gap-2">
+                    {(['Pending', 'Approved', 'Rejected'] as const).map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, status: s }))}
+                        className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                          formData.status === s
+                            ? s === 'Approved' ? 'bg-green-600 border-green-600 text-white'
+                              : s === 'Rejected' ? 'bg-red-500 border-red-500 text-white'
+                              : 'bg-amber-400 border-amber-400 text-white'
+                            : 'border-[#BBDEFB] text-[#0D47A1]/60 hover:bg-[#E3F2FD]'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
-                  {hasApprovedPayment ? (
-                    <p className="text-sm text-[#0D47A1] font-mono bg-white rounded px-3 py-2 border border-[#0D47A1]/30">
-                      {formData.client_label || '—'}
-                    </p>
-                  ) : (
-                    <input
-                      type="text"
-                      name="client_label"
-                      value={formData.client_label}
-                      onChange={handleChange}
-                      placeholder="Enter shipping label…"
-                      className="w-full rounded-lg border border-[#0D47A1]/40 bg-white px-4 py-2.5 text-[#0D47A1] placeholder-blue-300 focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 dark:bg-gray-800 dark:text-blue-300"
-                    />
+                  {formData.status === 'Rejected' && (
+                    <div>
+                      <label className={lbl}>Rejection Reason <span className="text-red-500">*</span></label>
+                      <textarea name="rejection_reason" value={formData.rejection_reason} onChange={handleChange} rows={3} placeholder="Explain why this quotation is being rejected…" className={`${inp} border-red-300 focus:border-red-500 focus:ring-red-200 resize-none`} required />
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {/* Receiver Information Section */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Receiver Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Receiver Name
-                      </label>
-                      <input
-                        type="text"
-                        name="receiver_name"
-                        value={formData.receiver_name}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        placeholder="Enter receiver name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Receiver Phone
-                      </label>
-                      <input
-                        type="text"
-                        name="receiver_phone"
-                        value={formData.receiver_phone}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        placeholder="Enter receiver phone"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Receiver Address
-                      </label>
-                      <input
-                        type="text"
-                        name="receiver_address"
-                        value={formData.receiver_address}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                        placeholder="Enter receiver address"
-                      />
-                    </div>
+              {/* Shipping */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Shipping</h3>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={lbl}>Method</label>
+                    <select name="shipping_method" value={formData.shipping_method} onChange={handleChange} className={inp} required>
+                      <option value="Sea">Sea</option>
+                      <option value="Air">Air</option>
+                      <option value="Train">Train</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>Country</label>
+                    <input type="text" name="shipping_country" value={formData.shipping_country} onChange={handleChange} className={inp} required />
+                  </div>
+                  <div>
+                    <label className={lbl}>City</label>
+                    <input type="text" name="shipping_city" value={formData.shipping_city} onChange={handleChange} className={inp} required />
                   </div>
                 </div>
+              </div>
 
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6 pb-6 space-y-4">
+              {/* Receiver */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Receiver Information</h3>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Quotation Image
-                    </label>
-                    <div className="flex flex-col items-center">
-                      <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-lg p-4 flex items-center justify-center cursor-pointer relative overflow-hidden z-10" onClick={() => setIsImageZoomed(true)}>
-                        {isValidImageUrl(formData.quotation_image) ? (
-                          <>
-                            <Image 
-                              src={formData.quotation_image} 
-                              alt="Quotation product" 
-                              width={400}
-                              height={300}
-                              className="max-h-60 object-contain relative z-10"
-                            />
-                            <div className="absolute bottom-2 right-2 bg-gray-800 bg-opacity-70 text-white p-1 rounded-full z-20">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M5 8a1 1 0 011-1h1V6a1 1 0 012 0v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 01-1-1z" />
-                                <path fillRule="evenodd" d="M2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8zm6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="h-40 w-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-                            No image available
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <label className={lbl}>Name</label>
+                    <input type="text" name="receiver_name" value={formData.receiver_name} onChange={handleChange} className={inp} placeholder="Receiver name" />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Quotation Fees
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="Quotation_fees"
-                      value={formData.Quotation_fees}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:focus:border-blue-400"
-                    />
+                    <label className={lbl}>Phone</label>
+                    <input type="text" name="receiver_phone" value={formData.receiver_phone} onChange={handleChange} className={inp} placeholder="Phone number" />
+                  </div>
+                  <div>
+                    <label className={lbl}>Address</label>
+                    <input type="text" name="receiver_address" value={formData.receiver_address} onChange={handleChange} className={inp} placeholder="Delivery address" />
                   </div>
                 </div>
+              </div>
 
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsPriceOptionsModalOpen(true)}
-                    className="w-full mb-4 bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
+              {/* Image + Fees */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Product Image & Fees</h3>
+                </div>
+                <div className="p-4 flex flex-col md:flex-row gap-4 items-start">
+                  <div
+                    className="relative w-full md:w-48 h-40 rounded-lg overflow-hidden border border-[#BBDEFB] cursor-zoom-in bg-[#E3F2FD]/30 flex items-center justify-center flex-shrink-0 group"
+                    onClick={() => setIsImageZoomed(true)}
                   >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Manage Price Options
-                  </Button>
-
-                  <div className="flex justify-end border-t border-gray-200 dark:border-gray-700 pt-6 gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onClose}
-                      disabled={isLoading}
-                      className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      disabled={isLoading}
-                      className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
-                    >
-                      {isLoading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+                    {isValidImageUrl(formData.quotation_image) ? (
+                      <>
+                        <Image src={formData.quotation_image} alt="Product" width={192} height={160} className="object-contain max-h-36 group-hover:scale-105 transition-transform duration-200" />
+                        <div className="absolute bottom-1.5 right-1.5 bg-[#0D47A1]/70 text-white p-1 rounded-full">
+                          <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 8a1 1 0 011-1h1V6a1 1 0 012 0v1h1a1 1 0 110 2H9v1a1 1 0 11-2 0V9H6a1 1 0 01-1-1z"/><path fillRule="evenodd" d="M2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8zm6-4a4 4 0 100 8 4 4 0 000-8z" clipRule="evenodd"/></svg>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-[#0D47A1]/40">No image available</p>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className={lbl}>Service Fee ($)</label>
+                    <input type="number" step="0.01" name="Quotation_fees" value={formData.Quotation_fees} onChange={handleChange} className={inp} placeholder="0.00" />
+                    <p className="text-xs text-[#0D47A1]/50 mt-1.5">Added to the client&apos;s total at checkout</p>
                   </div>
                 </div>
-              </form>
+              </div>
+
+              {/* Client Shipping Label */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Shipping Label</h3>
+                  {hasApprovedPayment && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-[#0D47A1] bg-white border border-[#0D47A1] px-2 py-0.5 rounded-full">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                      Locked
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 bg-white dark:bg-gray-800">
+                  {hasApprovedPayment ? (
+                    <p className="text-sm text-[#0D47A1] font-mono bg-[#E3F2FD]/50 rounded px-3 py-2 border border-[#BBDEFB]">{formData.client_label || '—'}</p>
+                  ) : (
+                    <input type="text" name="client_label" value={formData.client_label} onChange={handleChange} placeholder="Enter shipping label…" className={inp} />
+                  )}
+                </div>
+              </div>
+
+              {/* Customization Option */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Customization Option</h3>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, is_customizable: !prev.is_customizable }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${formData.is_customizable ? 'bg-[#0D47A1]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.is_customizable ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {formData.is_customizable && (
+                  <div className="p-4 bg-white dark:bg-gray-800 border-b border-[#E3F2FD]">
+                    <label className={lbl}>Customized Unit Price ($ / unit)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0D47A1]/60 text-sm">$</span>
+                      <input type="number" name="customization_price" value={formData.customization_price} onChange={handleChange} placeholder="0.00" step="0.01" min="0" className={`${inp} pl-7`} />
+                    </div>
+                    <p className="text-xs text-[#0D47A1]/50 mt-1.5">Total = unit price × quantity. Clients must upload customization files before paying.</p>
+                  </div>
+                )}
+                {customizationFiles.length > 0 && (
+                  <div className="p-4 bg-white dark:bg-gray-800 space-y-2">
+                    <p className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide mb-2">Client Files ({customizationFiles.length})</p>
+                    {customizationFiles.map(file => (
+                      <div key={file.id} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-[#BBDEFB] bg-[#E3F2FD]/40">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <svg className="w-4 h-4 text-[#0D47A1] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-[#0D47A1] truncate">{file.file_name}</p>
+                            <p className="text-xs text-[#0D47A1]/50">{file.file_type}{file.file_size ? ` · ${(file.file_size / 1024).toFixed(0)} KB` : ''}</p>
+                          </div>
+                        </div>
+                        <a href={file.file_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0D47A1] text-white text-xs font-medium hover:bg-[#1565C0] transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                          Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Manage Price Options */}
+              <button
+                type="button"
+                onClick={() => setIsPriceOptionsModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-[#BBDEFB] text-[#0D47A1] text-sm font-semibold hover:bg-[#E3F2FD] hover:border-[#0D47A1] transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                Manage Price Options
+              </button>
+
+            </form>
+
+            {/* Fixed Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#BBDEFB] bg-white dark:bg-gray-900 flex-shrink-0">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="border-[#BBDEFB] text-[#0D47A1] hover:bg-[#E3F2FD]">
+                Cancel
+              </Button>
+              <Button type="submit" form="edit-quotation-form" variant="primary" disabled={isLoading} className="!bg-[#0D47A1] hover:!bg-[#1565C0] text-white px-6">
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    Saving…
+                  </span>
+                ) : 'Save Changes'}
+              </Button>
             </div>
+
           </div>
         </div>
       </Modal>

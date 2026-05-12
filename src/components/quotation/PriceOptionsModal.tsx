@@ -5,7 +5,6 @@ import Image from "next/image"
 import { Plus, X, Download, Check } from "lucide-react"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -64,6 +63,8 @@ export default function PriceOptionsModal({
   const [showOption2, setShowOption2] = useState(!!initialData?.title_option2)
   const [showOption3, setShowOption3] = useState(!!initialData?.title_option3)
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
+  const [isCustomizable, setIsCustomizable] = useState(false)
+  const [customizationPrice, setCustomizationPrice] = useState('')
 
   const [formData, setFormData] = useState<PriceOptionsData>({
     title_option1: initialData?.title_option1 || "",
@@ -100,7 +101,8 @@ export default function PriceOptionsModal({
               quantity,
               title_option1, unit_price_option1, unit_weight_option1, delivery_time_option1, description_option1, extra_images_option1,
               title_option2, unit_price_option2, unit_weight_option2, delivery_time_option2, description_option2, extra_images_option2,
-              title_option3, unit_price_option3, unit_weight_option3, delivery_time_option3, description_option3, extra_images_option3
+              title_option3, unit_price_option3, unit_weight_option3, delivery_time_option3, description_option3, extra_images_option3,
+              is_customizable, customization_price
             `)
             .eq('id', quotationId)
             .single();
@@ -133,7 +135,10 @@ export default function PriceOptionsModal({
               extra_images_option3?: string[] | null;
             };
             setQuantity(quotationData.quantity || 1);
-            
+            const qd = quotationData as typeof quotationData & { is_customizable?: boolean; customization_price?: number | null };
+            setIsCustomizable(!!qd.is_customizable);
+            setCustomizationPrice(qd.customization_price?.toString() || '');
+
             // Update formData with all fields from database
             setFormData(prev => {
               const updates: Partial<PriceOptionsData> = {};
@@ -454,9 +459,17 @@ export default function PriceOptionsModal({
         description_option3: formData.description_option3,
       };
 
+      const fullUpdateData = {
+        ...updateData,
+        is_customizable: isCustomizable,
+        customization_price: isCustomizable && customizationPrice.trim()
+          ? parseFloat(customizationPrice)
+          : null,
+      };
+
       const { error } = await supabase
         .from("quotations")
-        .update(updateData as never)
+        .update(fullUpdateData as never)
         .eq("id", quotationId);
 
       if (error) throw error;
@@ -661,7 +674,7 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Title - Full Width on mobile, 4 columns on desktop */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="title_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="title_option1" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Title <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -670,13 +683,13 @@ export default function PriceOptionsModal({
             value={formData.title_option1 || ""}
             onChange={(e) => handleInputChange(e, "title_option1")}
             required
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Delivery Time - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="delivery_time_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="delivery_time_option1" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Delivery Time
           </Label>
           <Input
@@ -684,13 +697,13 @@ export default function PriceOptionsModal({
             placeholder="e.g. 7-10 days"
             value={formData.delivery_time_option1 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option1")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Price - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_price_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <Label htmlFor="unit_price_option1" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Price</Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
             <Input
@@ -700,19 +713,19 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option1 != null ? formData.unit_price_option1 : ""}
               onChange={(e) => handleInputChange(e, "unit_price_option1")}
-              className="pl-7 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+              className="pl-7 border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
             />
           </div>
           {formData.unit_price_option1 != null && quantity > 0 && (
-            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
-              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option1).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option1.toFixed(2)})
+            <div className="text-xs text-[#0D47A1]/60 mt-1">
+              Total: <span className="font-semibold text-[#0D47A1]">${calculateTotalPrice(formData.unit_price_option1).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option1.toFixed(2)})
             </div>
           )}
         </div>
         
         {/* Weight - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_weight_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
+          <Label htmlFor="unit_weight_option1" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Weight (g)</Label>
           <Input
             id="unit_weight_option1"
             type="number"
@@ -720,7 +733,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option1 != null ? formData.unit_weight_option1 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option1")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -728,27 +741,27 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Description - 8 columns */}
         <div className="md:col-span-8 space-y-1.5">
-          <Label htmlFor="description_option1" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
+          <Label htmlFor="description_option1" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Description</Label>
           <Textarea
             id="description_option1"
             placeholder="Add details about this option..."
             value={formData.description_option1 || ""}
             onChange={(e) => handleInputChange(e, "description_option1")}
-            className="min-h-[120px] bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-white"
+            className="min-h-[120px] border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 resize-none text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide block">
               Images/Videos ({getAllImages(1).length}/10)
             </Label>
             {getAllImages(1).length > 0 && (
               <button
                 type="button"
                 onClick={() => toggleSelectAll(1)}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs text-[#0D47A1] hover:underline"
               >
                 {getAllImages(1).every((url) => selectedImages.has(`1-${url}`)) ? 'Deselect All' : 'Select All'}
               </button>
@@ -784,14 +797,14 @@ export default function PriceOptionsModal({
                       }}
                       className={`absolute top-1 left-1 p-1 rounded transition-all ${
                         selectedImages.has(`1-${url}`)
-                          ? 'bg-blue-600 text-white opacity-100'
+                          ? 'bg-[#0D47A1] text-white opacity-100'
                           : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
                       }`}
                     >
                       <Check className={`h-3 w-3 ${selectedImages.has(`1-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
                     </button>
                     {selectedImages.has(`1-${url}`) && (
-                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                      <div className="absolute inset-0 border-2 border-[#0D47A1] rounded-md pointer-events-none" />
                     )}
                     <button
                       type="button"
@@ -810,7 +823,7 @@ export default function PriceOptionsModal({
 
             {getAllImages(1).length < 10 && (
               <div className="relative aspect-square">
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-[#0D47A1] hover:bg-[#E3F2FD] transition-all cursor-pointer group">
                   <input 
                     type="file" 
                     multiple
@@ -819,7 +832,7 @@ export default function PriceOptionsModal({
                     onChange={(e) => handleImageUpload(e, 1)} 
                     disabled={isLoading}
                   />
-                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-[#0D47A1] transition-colors" />
                   <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
@@ -835,7 +848,7 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Title - Full Width on mobile, 4 columns on desktop */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="title_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="title_option2" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Title
           </Label>
           <Input
@@ -843,13 +856,13 @@ export default function PriceOptionsModal({
             placeholder="e.g. Premium"
             value={formData.title_option2 || ""}
             onChange={(e) => handleInputChange(e, "title_option2")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Delivery Time - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="delivery_time_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="delivery_time_option2" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Delivery Time
           </Label>
           <Input
@@ -857,13 +870,13 @@ export default function PriceOptionsModal({
             placeholder="e.g. 2 WEEKS"
             value={formData.delivery_time_option2 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option2")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Price - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_price_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <Label htmlFor="unit_price_option2" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Price</Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
             <Input
@@ -873,19 +886,19 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option2 != null ? formData.unit_price_option2 : ""}
               onChange={(e) => handleInputChange(e, "unit_price_option2")}
-              className="pl-7 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+              className="pl-7 border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
             />
           </div>
           {formData.unit_price_option2 != null && quantity > 0 && (
-            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
-              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option2).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option2.toFixed(2)})
+            <div className="text-xs text-[#0D47A1]/60 mt-1">
+              Total: <span className="font-semibold text-[#0D47A1]">${calculateTotalPrice(formData.unit_price_option2).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option2.toFixed(2)})
             </div>
           )}
         </div>
         
         {/* Weight - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_weight_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
+          <Label htmlFor="unit_weight_option2" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Weight (g)</Label>
           <Input
             id="unit_weight_option2"
             type="number"
@@ -893,7 +906,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option2 != null ? formData.unit_weight_option2 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option2")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -901,27 +914,27 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Description - 8 columns */}
         <div className="md:col-span-8 space-y-1.5">
-          <Label htmlFor="description_option2" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
+          <Label htmlFor="description_option2" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Description</Label>
           <Textarea
             id="description_option2"
             placeholder="Add details about this option..."
             value={formData.description_option2 || ""}
             onChange={(e) => handleInputChange(e, "description_option2")}
-            className="min-h-[120px] bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-white"
+            className="min-h-[120px] border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 resize-none text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide block">
               Images/Videos ({getAllImages(2).length}/10)
             </Label>
             {getAllImages(2).length > 0 && (
               <button
                 type="button"
                 onClick={() => toggleSelectAll(2)}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs text-[#0D47A1] hover:underline"
               >
                 {getAllImages(2).every((url) => selectedImages.has(`2-${url}`)) ? 'Deselect All' : 'Select All'}
               </button>
@@ -957,14 +970,14 @@ export default function PriceOptionsModal({
                       }}
                       className={`absolute top-1 left-1 p-1 rounded transition-all ${
                         selectedImages.has(`2-${url}`)
-                          ? 'bg-blue-600 text-white opacity-100'
+                          ? 'bg-[#0D47A1] text-white opacity-100'
                           : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
                       }`}
                     >
                       <Check className={`h-3 w-3 ${selectedImages.has(`2-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
                     </button>
                     {selectedImages.has(`2-${url}`) && (
-                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                      <div className="absolute inset-0 border-2 border-[#0D47A1] rounded-md pointer-events-none" />
                     )}
                     <button
                       type="button"
@@ -983,7 +996,7 @@ export default function PriceOptionsModal({
 
             {getAllImages(2).length < 10 && (
               <div className="relative aspect-square">
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-[#0D47A1] hover:bg-[#E3F2FD] transition-all cursor-pointer group">
                   <input 
                     type="file" 
                     multiple
@@ -992,7 +1005,7 @@ export default function PriceOptionsModal({
                     onChange={(e) => handleImageUpload(e, 2)} 
                     disabled={isLoading}
                   />
-                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-[#0D47A1] transition-colors" />
                   <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
@@ -1008,7 +1021,7 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Title - Full Width on mobile, 4 columns on desktop */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="title_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="title_option3" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Title
           </Label>
           <Input
@@ -1016,13 +1029,13 @@ export default function PriceOptionsModal({
             placeholder="e.g. Deluxe"
             value={formData.title_option3 || ""}
             onChange={(e) => handleInputChange(e, "title_option3")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Delivery Time - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
-          <Label htmlFor="delivery_time_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+          <Label htmlFor="delivery_time_option3" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">
             Delivery Time
           </Label>
           <Input
@@ -1030,13 +1043,13 @@ export default function PriceOptionsModal({
             placeholder="e.g. 3 DAYS"
             value={formData.delivery_time_option3 || ""}
             onChange={(e) => handleInputChange(e, "delivery_time_option3")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Price - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_price_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Price</Label>
+          <Label htmlFor="unit_price_option3" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Price</Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 text-sm">$</span>
             <Input
@@ -1046,19 +1059,19 @@ export default function PriceOptionsModal({
               placeholder="0.00"
               value={formData.unit_price_option3 != null ? formData.unit_price_option3 : ""}
               onChange={(e) => handleInputChange(e, "unit_price_option3")}
-              className="pl-7 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+              className="pl-7 border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
             />
           </div>
           {formData.unit_price_option3 != null && quantity > 0 && (
-            <div className="text-xs text-gray-600 dark:text-slate-400 mt-1">
-              Total: <span className="font-semibold text-blue-600 dark:text-blue-400">${calculateTotalPrice(formData.unit_price_option3).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option3.toFixed(2)})
+            <div className="text-xs text-[#0D47A1]/60 mt-1">
+              Total: <span className="font-semibold text-[#0D47A1]">${calculateTotalPrice(formData.unit_price_option3).toFixed(2)}</span> ({quantity} × ${formData.unit_price_option3.toFixed(2)})
             </div>
           )}
         </div>
         
         {/* Weight - 2 columns */}
         <div className="md:col-span-2 space-y-1.5">
-          <Label htmlFor="unit_weight_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Weight (g)</Label>
+          <Label htmlFor="unit_weight_option3" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Weight (g)</Label>
           <Input
             id="unit_weight_option3"
             type="number"
@@ -1066,7 +1079,7 @@ export default function PriceOptionsModal({
             placeholder="0.00"
             value={formData.unit_weight_option3 != null ? formData.unit_weight_option3 : ""}
             onChange={(e) => handleInputChange(e, "unit_weight_option3")}
-            className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 transition-all input-no-spin text-gray-900 dark:text-white"
+            className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white"
           />
         </div>
       </div>
@@ -1074,27 +1087,27 @@ export default function PriceOptionsModal({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Description - 8 columns */}
         <div className="md:col-span-8 space-y-1.5">
-          <Label htmlFor="description_option3" className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Description</Label>
+          <Label htmlFor="description_option3" className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Description</Label>
           <Textarea
             id="description_option3"
             placeholder="Add details about this option..."
             value={formData.description_option3 || ""}
             onChange={(e) => handleInputChange(e, "description_option3")}
-            className="min-h-[120px] bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-blue-500 resize-none transition-all text-gray-900 dark:text-white"
+            className="min-h-[120px] border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 resize-none text-gray-900 dark:text-white"
           />
         </div>
 
         {/* Images - 4 columns */}
         <div className="md:col-span-4 space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide block">
               Images/Videos ({getAllImages(3).length}/10)
             </Label>
             {getAllImages(3).length > 0 && (
               <button
                 type="button"
                 onClick={() => toggleSelectAll(3)}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-xs text-[#0D47A1] hover:underline"
               >
                 {getAllImages(3).every((url) => selectedImages.has(`3-${url}`)) ? 'Deselect All' : 'Select All'}
               </button>
@@ -1130,14 +1143,14 @@ export default function PriceOptionsModal({
                       }}
                       className={`absolute top-1 left-1 p-1 rounded transition-all ${
                         selectedImages.has(`3-${url}`)
-                          ? 'bg-blue-600 text-white opacity-100'
+                          ? 'bg-[#0D47A1] text-white opacity-100'
                           : 'bg-white/90 text-gray-600 hover:bg-white opacity-0 group-hover:opacity-100'
                       }`}
                     >
                       <Check className={`h-3 w-3 ${selectedImages.has(`3-${url}`) ? 'opacity-100' : 'opacity-50'}`} />
                     </button>
                     {selectedImages.has(`3-${url}`) && (
-                      <div className="absolute inset-0 border-2 border-blue-600 rounded-md pointer-events-none" />
+                      <div className="absolute inset-0 border-2 border-[#0D47A1] rounded-md pointer-events-none" />
                     )}
                     <button
                       type="button"
@@ -1156,7 +1169,7 @@ export default function PriceOptionsModal({
 
             {getAllImages(3).length < 10 && (
               <div className="relative aspect-square">
-                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all cursor-pointer group">
+                <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 dark:border-slate-600 hover:border-[#0D47A1] hover:bg-[#E3F2FD] transition-all cursor-pointer group">
                   <input 
                     type="file" 
                     multiple
@@ -1165,7 +1178,7 @@ export default function PriceOptionsModal({
                     onChange={(e) => handleImageUpload(e, 3)} 
                     disabled={isLoading}
                   />
-                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-blue-500 dark:text-slate-500 transition-colors" />
+                  <Plus className="h-5 w-5 text-gray-400 group-hover:text-[#0D47A1] transition-colors" />
                   <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Add</span>
                 </label>
               </div>
@@ -1179,136 +1192,171 @@ export default function PriceOptionsModal({
 return (
     <Modal isOpen={isOpen} onClose={handleClose}>
       <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/50">
-        <div className="bg-white dark:bg-slate-900 rounded-lg w-full max-w-4xl h-[90vh] flex flex-col shadow-xl">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Price Options</h2>
+          <div className="flex items-center justify-between px-6 py-4 bg-[#E3F2FD] dark:bg-blue-900/20 border-b border-[#BBDEFB] flex-shrink-0">
+            <div>
+              <h2 className="text-lg font-bold text-[#0D47A1] dark:text-blue-300">Manage Price Options</h2>
+              <p className="text-xs text-[#0D47A1]/60 mt-0.5">Set up to 3 price options · Qty: {quantity}</p>
+            </div>
             <div className="flex items-center gap-2">
               {selectedImages.size > 0 && (
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={handleDownloadSelected}
                   disabled={isLoading}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#0D47A1] text-[#0D47A1] text-xs font-medium hover:bg-[#E3F2FD] transition-colors"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
                   Download ({selectedImages.size})
-                </Button>
+                </button>
               )}
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
                 onClick={handleClose}
-                className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-[#BBDEFB] text-[#0D47A1] hover:bg-[#BBDEFB] transition-all active:scale-95"
               >
-                <X className="h-5 w-5" />
-              </Button>
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-slate-900/95">
+          <div className="flex-1 overflow-y-auto p-5 bg-white dark:bg-gray-900">
             <form id="price-options-form" onSubmit={handleSubmit} className="space-y-4">
-              {/* Option 1 */}
-              <Card className="shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                  <CardTitle className="text-lg text-gray-900 dark:text-slate-100 flex items-center">
-                    Price Option 1 <span className="text-sm text-rose-500 dark:text-rose-400 ml-2">(Required)</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-4">
-                  {renderOption1Content()}
-                </CardContent>
-              </Card>
 
-              {/* Add Option 2 button */}
-              {!showOption2 && (
-                <div className="flex justify-center py-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowOption2(true)}
-                    className="flex items-center gap-2 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Price Option 2
-                  </Button>
+              {/* Option 1 — Required */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0D47A1] text-white text-[10px] font-bold">1</span>
+                    <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Price Option 1</h3>
+                    <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">Required</span>
+                  </div>
                 </div>
+                <div className="p-4 bg-white dark:bg-gray-800">
+                  {renderOption1Content()}
+                </div>
+              </div>
+
+              {/* Add Option 2 */}
+              {!showOption2 && (
+                <button
+                  type="button"
+                  onClick={() => setShowOption2(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-[#BBDEFB] text-[#0D47A1] text-xs font-semibold hover:bg-[#E3F2FD] hover:border-[#0D47A1] transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Price Option 2
+                </button>
               )}
 
               {/* Option 2 */}
               {showOption2 && (
-                <Card className="relative shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    onClick={() => {
-                      setShowOption2(false);
-                      setShowOption3(false);
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                    <CardTitle className="text-lg text-gray-900 dark:text-slate-100">Price Option 2</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0D47A1] text-white text-[10px] font-bold">2</span>
+                      <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Price Option 2</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowOption2(false); setShowOption3(false); }}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-[#BBDEFB] text-[#0D47A1] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-all"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="p-4 bg-white dark:bg-gray-800">
                     {renderOption2Content()}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
-              {/* Add Option 3 button */}
+              {/* Add Option 3 */}
               {showOption2 && !showOption3 && (
-                <div className="flex justify-center py-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowOption3(true)}
-                    className="flex items-center gap-2 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Price Option 3
-                  </Button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOption3(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-[#BBDEFB] text-[#0D47A1] text-xs font-semibold hover:bg-[#E3F2FD] hover:border-[#0D47A1] transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Price Option 3
+                </button>
               )}
 
               {/* Option 3 */}
               {showOption3 && (
-                <Card className="relative shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700 border border-gray-200">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-300"
-                    onClick={() => setShowOption3(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <CardHeader className="p-4 border-b border-gray-100 dark:border-slate-700/50">
-                    <CardTitle className="text-lg text-gray-900 dark:text-slate-100">Price Option 3</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-4">
+                <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0D47A1] text-white text-[10px] font-bold">3</span>
+                      <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Price Option 3</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowOption3(false)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-[#BBDEFB] text-[#0D47A1] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-all"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="p-4 bg-white dark:bg-gray-800">
                     {renderOption3Content()}
-                  </CardContent>
-                </Card>
-            )}
+                  </div>
+                </div>
+              )}
+
+              {/* Customization Option */}
+              <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                  <div>
+                    <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Customization Option</h3>
+                    <p className="text-xs text-[#0D47A1]/60 mt-0.5">Offer a customized version at a separate unit price</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomizable(v => !v)}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${isCustomizable ? 'bg-[#0D47A1]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isCustomizable ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {isCustomizable && (
+                  <div className="p-4 bg-white dark:bg-gray-800">
+                    <Label className="block text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide mb-1.5">
+                      Customized Unit Price ($ / unit)
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0D47A1]/60 text-sm font-medium">$</span>
+                      <input
+                        type="number"
+                        value={customizationPrice}
+                        onChange={e => setCustomizationPrice(e.target.value)}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        className="w-full rounded-lg border border-[#BBDEFB] bg-white pl-7 pr-4 py-2.5 text-[#0D47A1] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none text-sm dark:bg-gray-900 dark:text-blue-300"
+                      />
+                    </div>
+                    <p className="text-xs text-[#0D47A1]/50 mt-1.5">
+                      Total = unit price × quantity. Clients must upload customization files before paying.
+                    </p>
+                  </div>
+                )}
+              </div>
+
             </form>
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-900">
-            <div className="flex justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#BBDEFB] bg-white dark:bg-gray-900 flex-shrink-0">
             <Button
               variant="outline"
               type="button"
               onClick={handleClose}
-              className="w-24 bg-white dark:bg-slate-800 border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              className="border-[#BBDEFB] text-[#0D47A1] hover:bg-[#E3F2FD]"
             >
               Cancel
             </Button>
@@ -1317,20 +1365,18 @@ return (
               type="submit"
               form="price-options-form"
               disabled={isLoading}
-              className="w-24 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="!bg-[#0D47A1] hover:!bg-[#1565C0] text-white px-6"
             >
               {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <div className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
+                  Saving…
                 </div>
-              ) : (
-                  'Save'
-              )}
+              ) : 'Save Changes'}
             </Button>
-            </div>
           </div>
         </div>
       </div>

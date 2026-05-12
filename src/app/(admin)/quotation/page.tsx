@@ -201,6 +201,9 @@ export default function QuotationPage() {
           receiver_address?: string;
           rejection_reason?: string | null;
           client_label?: string | null;
+          is_customizable?: boolean | null;
+          customization_price?: number | null;
+          selected_version?: string | null;
           profiles?: {
             email?: string;
             full_name?: string;
@@ -290,6 +293,9 @@ export default function QuotationPage() {
           receiver_address: item.receiver_address,
           rejection_reason: item.rejection_reason ?? null,
           client_label: item.client_label ?? null,
+          is_customizable: item.is_customizable ?? false,
+          customization_price: item.customization_price ?? null,
+          selected_version: (item.selected_version as 'stock' | 'customized' | null) ?? null,
         };
       }) || [];
 
