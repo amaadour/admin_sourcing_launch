@@ -556,25 +556,20 @@ export default function PaymentPage() {
                     {/* Middle - Payment details */}
                     <div className="sm:w-2/4 flex flex-col justify-between">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                          <div className="text-xs text-gray-500 dark:text-slate-400">Payment ID</div>
-                          <div className="font-mono text-xs truncate text-gray-700 dark:text-slate-300">{payment.id}</div>
-                    </div>
-                        
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-slate-400">Reference Number</div>
+                          <div className="font-mono text-xs font-semibold text-[#0D47A1] dark:text-blue-300">{payment.reference_number || '-'}</div>
+                        </div>
+
                         <div>
                           <div className="text-xs text-gray-500 dark:text-slate-400">Date</div>
                           <div className="text-gray-700 dark:text-slate-300">{formatDate(payment.created_at)}</div>
-                    </div>
-                        
-                        <div>
-                          <div className="text-xs text-gray-500 dark:text-slate-400">Reference</div>
-                          <div className="text-gray-700 dark:text-slate-300">{payment.reference_number || '-'}</div>
-                    </div>
-                        
+                        </div>
+
                         <div>
                           <div className="text-xs text-gray-500 dark:text-slate-400">Method</div>
                           <div className="text-gray-700 dark:text-slate-300">{payment.method}</div>
-                    </div>
+                        </div>
                   </div>
 
                       <div className="flex items-center gap-2 mt-3">
