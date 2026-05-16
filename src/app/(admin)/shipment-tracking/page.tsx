@@ -14,6 +14,7 @@ import Image from "next/image";
 import { Modal } from "@/components/ui/modal";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { sendEmailClient } from "@/lib/sendEmailClient";
 
 // Product fallback image
 const defaultProductImage = "/images/product/product-01.jpg";
@@ -670,6 +671,21 @@ export default function ShipmentTrackingPage() {
       );
       
       setShowStatusModal(false);
+
+      // Send shipping update email to client
+      if (selectedShipment.user?.email) {
+        sendEmailClient({
+          type: 'shipping_update',
+          clientEmail: selectedShipment.user.email,
+          shipment: {
+            status: newStatus,
+            product_name: selectedShipment.quotation?.product_name,
+            tracking_number: selectedShipment.label || undefined,
+            destination: selectedShipment.quotation ? `${selectedShipment.quotation.shipping_city || ''} ${selectedShipment.quotation.shipping_country}`.trim() : undefined,
+            quotation_id: selectedShipment.quotation_id || undefined,
+          },
+        });
+      }
     } catch (err) {
       console.error("Error updating status:", err);
       setStatusUpdateError("Failed to update status. Please try again.");

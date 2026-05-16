@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { QuotationData, CustomizationFile } from "@/types/quotation";
 import { supabase } from "@/lib/supabase";
 import { customToast } from "@/components/ui/toast";
+import { sendEmailClient } from "@/lib/sendEmailClient";
 import PriceOptionsModal from "./PriceOptionsModal";
 import Image from 'next/image';
 
@@ -202,6 +203,29 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
           .from('shipping')
           .update({ label: newLabel } as never)
           .eq('quotation_id', quotationUuid);
+      }
+
+      // Send email if status changed to Approved or Rejected
+      const newStatus = formData.status;
+      const oldStatus = quotation.status;
+      if ((newStatus === 'Approved' || newStatus === 'Rejected') && newStatus !== oldStatus) {
+        const clientEmail = quotation.user?.email;
+        if (clientEmail) {
+          sendEmailClient({
+            type: 'quotation_status',
+            clientEmail,
+            quotation: {
+              quotation_id: quotation.quotation_id,
+              product_name: quotation.product?.name || formData.product_name,
+              quantity: quotation.quantity,
+              status: newStatus,
+              shipping_country: formData.shipping_country,
+              shipping_city: formData.shipping_city,
+              receiver_name: formData.receiver_name,
+              rejection_reason: newStatus === 'Rejected' ? formData.rejection_reason : null,
+            },
+          });
+        }
       }
 
       customToast({

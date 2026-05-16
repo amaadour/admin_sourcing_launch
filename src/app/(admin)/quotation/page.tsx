@@ -204,6 +204,11 @@ export default function QuotationPage() {
           is_customizable?: boolean | null;
           customization_price?: number | null;
           selected_version?: string | null;
+          custom_title_option1?: string | null; custom_unit_price_option1?: number | null; custom_unit_weight_option1?: number | null;
+          custom_images_option1?: string[] | null; custom_description_option1?: string | null; custom_delivery_option1?: string | null;
+          custom_title_option2?: string | null; custom_unit_price_option2?: number | null; custom_unit_weight_option2?: number | null;
+          custom_images_option2?: string[] | null; custom_description_option2?: string | null; custom_delivery_option2?: string | null;
+          selected_customization_option?: number | null;
           profiles?: {
             email?: string;
             full_name?: string;
@@ -296,6 +301,19 @@ export default function QuotationPage() {
           is_customizable: item.is_customizable ?? false,
           customization_price: item.customization_price ?? null,
           selected_version: (item.selected_version as 'stock' | 'customized' | null) ?? null,
+          custom_title_option1: item.custom_title_option1 ?? null,
+          custom_unit_price_option1: item.custom_unit_price_option1 ?? null,
+          custom_unit_weight_option1: item.custom_unit_weight_option1 ?? null,
+          custom_images_option1: item.custom_images_option1 ?? [],
+          custom_description_option1: item.custom_description_option1 ?? null,
+          custom_delivery_option1: item.custom_delivery_option1 ?? null,
+          custom_title_option2: item.custom_title_option2 ?? null,
+          custom_unit_price_option2: item.custom_unit_price_option2 ?? null,
+          custom_unit_weight_option2: item.custom_unit_weight_option2 ?? null,
+          custom_images_option2: item.custom_images_option2 ?? [],
+          custom_description_option2: item.custom_description_option2 ?? null,
+          custom_delivery_option2: item.custom_delivery_option2 ?? null,
+          selected_customization_option: item.selected_customization_option ?? null,
         };
       }) || [];
 

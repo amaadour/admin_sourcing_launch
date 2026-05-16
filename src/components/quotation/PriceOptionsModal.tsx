@@ -32,6 +32,21 @@ interface PriceOptionsData {
   description_option3?: string;
 }
 
+interface CustomOptionsData {
+  custom_title_option1?: string;
+  custom_unit_price_option1?: number;
+  custom_unit_weight_option1?: number;
+  custom_images_option1?: string[];
+  custom_description_option1?: string;
+  custom_delivery_option1?: string;
+  custom_title_option2?: string;
+  custom_unit_price_option2?: number;
+  custom_unit_weight_option2?: number;
+  custom_images_option2?: string[];
+  custom_description_option2?: string;
+  custom_delivery_option2?: string;
+}
+
 interface PriceOptionsModalProps {
   isOpen: boolean
   onClose: () => void
@@ -65,6 +80,13 @@ export default function PriceOptionsModal({
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [isCustomizable, setIsCustomizable] = useState(false)
   const [customizationPrice, setCustomizationPrice] = useState('')
+  const [showCustomOption2, setShowCustomOption2] = useState(false)
+  const [customFormData, setCustomFormData] = useState<CustomOptionsData>({
+    custom_title_option1: '', custom_unit_price_option1: undefined, custom_unit_weight_option1: undefined,
+    custom_images_option1: [], custom_description_option1: '', custom_delivery_option1: '',
+    custom_title_option2: '', custom_unit_price_option2: undefined, custom_unit_weight_option2: undefined,
+    custom_images_option2: [], custom_description_option2: '', custom_delivery_option2: '',
+  })
 
   const [formData, setFormData] = useState<PriceOptionsData>({
     title_option1: initialData?.title_option1 || "",
@@ -102,7 +124,9 @@ export default function PriceOptionsModal({
               title_option1, unit_price_option1, unit_weight_option1, delivery_time_option1, description_option1, extra_images_option1,
               title_option2, unit_price_option2, unit_weight_option2, delivery_time_option2, description_option2, extra_images_option2,
               title_option3, unit_price_option3, unit_weight_option3, delivery_time_option3, description_option3, extra_images_option3,
-              is_customizable, customization_price
+              is_customizable, customization_price,
+              custom_title_option1, custom_unit_price_option1, custom_unit_weight_option1, custom_images_option1, custom_description_option1, custom_delivery_option1,
+              custom_title_option2, custom_unit_price_option2, custom_unit_weight_option2, custom_images_option2, custom_description_option2, custom_delivery_option2
             `)
             .eq('id', quotationId)
             .single();
@@ -135,9 +159,31 @@ export default function PriceOptionsModal({
               extra_images_option3?: string[] | null;
             };
             setQuantity(quotationData.quantity || 1);
-            const qd = quotationData as typeof quotationData & { is_customizable?: boolean; customization_price?: number | null };
+            const qd = quotationData as typeof quotationData & {
+              is_customizable?: boolean; customization_price?: number | null;
+              custom_title_option1?: string | null; custom_unit_price_option1?: number | null; custom_unit_weight_option1?: number | null;
+              custom_images_option1?: string[] | null; custom_description_option1?: string | null; custom_delivery_option1?: string | null;
+              custom_title_option2?: string | null; custom_unit_price_option2?: number | null; custom_unit_weight_option2?: number | null;
+              custom_images_option2?: string[] | null; custom_description_option2?: string | null; custom_delivery_option2?: string | null;
+            };
             setIsCustomizable(!!qd.is_customizable);
             setCustomizationPrice(qd.customization_price?.toString() || '');
+            setCustomFormData({
+              custom_title_option1: qd.custom_title_option1 || '',
+              custom_unit_price_option1: qd.custom_unit_price_option1 ?? undefined,
+              custom_unit_weight_option1: qd.custom_unit_weight_option1 ?? undefined,
+              custom_images_option1: qd.custom_images_option1 || [],
+              custom_description_option1: qd.custom_description_option1 || '',
+              custom_delivery_option1: qd.custom_delivery_option1 || '',
+              custom_title_option2: qd.custom_title_option2 || '',
+              custom_unit_price_option2: qd.custom_unit_price_option2 ?? undefined,
+              custom_unit_weight_option2: qd.custom_unit_weight_option2 ?? undefined,
+              custom_images_option2: qd.custom_images_option2 || [],
+              custom_description_option2: qd.custom_description_option2 || '',
+              custom_delivery_option2: qd.custom_delivery_option2 || '',
+            });
+            // Show C2 only if it has data
+            setShowCustomOption2(!!(qd.custom_title_option2 || qd.custom_unit_price_option2));
 
             // Update formData with all fields from database
             setFormData(prev => {
@@ -462,9 +508,22 @@ export default function PriceOptionsModal({
       const fullUpdateData = {
         ...updateData,
         is_customizable: isCustomizable,
-        customization_price: isCustomizable && customizationPrice.trim()
-          ? parseFloat(customizationPrice)
-          : null,
+        customization_price: isCustomizable && customizationPrice.trim() ? parseFloat(customizationPrice) : null,
+        ...(isCustomizable ? {
+          custom_title_option1: customFormData.custom_title_option1 || null,
+          custom_unit_price_option1: customFormData.custom_unit_price_option1 ?? null,
+          custom_unit_weight_option1: customFormData.custom_unit_weight_option1 ?? null,
+          custom_images_option1: customFormData.custom_images_option1 || [],
+          custom_description_option1: customFormData.custom_description_option1 || null,
+          custom_delivery_option1: customFormData.custom_delivery_option1 || null,
+          // Only save C2 if it's shown; clear it otherwise
+          custom_title_option2: showCustomOption2 ? (customFormData.custom_title_option2 || null) : null,
+          custom_unit_price_option2: showCustomOption2 ? (customFormData.custom_unit_price_option2 ?? null) : null,
+          custom_unit_weight_option2: showCustomOption2 ? (customFormData.custom_unit_weight_option2 ?? null) : null,
+          custom_images_option2: showCustomOption2 ? (customFormData.custom_images_option2 || []) : [],
+          custom_description_option2: showCustomOption2 ? (customFormData.custom_description_option2 || null) : null,
+          custom_delivery_option2: showCustomOption2 ? (customFormData.custom_delivery_option2 || null) : null,
+        } : {}),
       };
 
       const { error } = await supabase
@@ -669,6 +728,140 @@ export default function PriceOptionsModal({
       return newSet;
     });
   };
+  // Custom option helpers
+  const getCustomImages = (optionNum: 1 | 2): string[] =>
+    customFormData[`custom_images_option${optionNum}`] || [];
+
+  const updateCustomImages = (optionNum: 1 | 2, images: string[]) =>
+    setCustomFormData(prev => ({ ...prev, [`custom_images_option${optionNum}`]: images }));
+
+  const handleCustomInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    field: keyof CustomOptionsData
+  ) => {
+    const value = e.target.value;
+    if (field.includes('unit_price') || field.includes('unit_weight')) {
+      setCustomFormData(prev => ({ ...prev, [field]: value ? parseFloat(value) : undefined }));
+    } else {
+      setCustomFormData(prev => ({ ...prev, [field]: value || null }));
+    }
+  };
+
+  const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, optionNum: 1 | 2) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const current = getCustomImages(optionNum);
+    if (current.length >= 10) { customToast({ variant: 'destructive', title: 'Error', description: 'Max 10 files per option' }); return; }
+    setIsLoading(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files).slice(0, 10 - current.length)) {
+        const ext = file.name.split('.').pop();
+        const path = `custom_options/${quotationId}/opt${optionNum}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { data, error } = await supabase.storage.from('price_option_images').upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data: urlData } = supabase.storage.from('price_option_images').getPublicUrl(data.path);
+        uploaded.push(urlData.publicUrl);
+      }
+      updateCustomImages(optionNum, [...current, ...uploaded]);
+    } catch (err) {
+      customToast({ variant: 'destructive', title: 'Upload Error', description: String(err) });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderCustomOptionContent = (optionNum: 1 | 2) => {
+    const prefix = `custom_` as const;
+    const titleKey = `${prefix}title_option${optionNum}` as keyof CustomOptionsData;
+    const priceKey = `${prefix}unit_price_option${optionNum}` as keyof CustomOptionsData;
+    const weightKey = `${prefix}unit_weight_option${optionNum}` as keyof CustomOptionsData;
+    const descKey = `${prefix}description_option${optionNum}` as keyof CustomOptionsData;
+    const deliveryKey = `${prefix}delivery_option${optionNum}` as keyof CustomOptionsData;
+    const images = getCustomImages(optionNum);
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-4 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Title</Label>
+            <Input placeholder="e.g. Standard Custom" value={(customFormData[titleKey] as string) || ''}
+              onChange={e => handleCustomInputChange(e, titleKey)}
+              className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white" />
+          </div>
+          <div className="md:col-span-4 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Estimated Delivery</Label>
+            <Input placeholder="e.g. 15-20 days" value={(customFormData[deliveryKey] as string) || ''}
+              onChange={e => handleCustomInputChange(e, deliveryKey)}
+              className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 text-gray-900 dark:text-white" />
+          </div>
+          <div className="md:col-span-2 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Unit Price</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+              <Input type="number" step="0.01" placeholder="0.00"
+                value={(customFormData[priceKey] as number) != null ? (customFormData[priceKey] as number) : ''}
+                onChange={e => handleCustomInputChange(e, priceKey)}
+                className="pl-7 border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white" />
+            </div>
+            {(customFormData[priceKey] as number) && quantity > 0 && (
+              <div className="text-xs text-[#0D47A1]/60 mt-1">
+                Total: <span className="font-semibold text-[#0D47A1]">${calculateTotalPrice(customFormData[priceKey] as number).toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+          <div className="md:col-span-2 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Weight (g)</Label>
+            <Input type="number" step="0.01" placeholder="0.00"
+              value={(customFormData[weightKey] as number) != null ? (customFormData[weightKey] as number) : ''}
+              onChange={e => handleCustomInputChange(e, weightKey)}
+              className="border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 input-no-spin text-gray-900 dark:text-white" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-8 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Description</Label>
+            <Textarea placeholder="Add details about this customized option..."
+              value={(customFormData[descKey] as string) || ''}
+              onChange={e => handleCustomInputChange(e, descKey)}
+              className="min-h-[100px] border-[#BBDEFB] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 resize-none text-gray-900 dark:text-white" />
+          </div>
+          <div className="md:col-span-4 space-y-1.5">
+            <Label className="text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide">Images ({images.length}/10)</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {images.map((url, idx) => (
+                <div key={idx} className="relative aspect-square">
+                  {isValidImageUrl(url) && (
+                    <div className="relative group w-full h-full rounded-md overflow-hidden border border-gray-200 bg-gray-50">
+                      {isVideoUrl(url) ? (
+                        <video src={url} controls className="w-full h-full object-cover" />
+                      ) : (
+                        <Image src={url} alt={`Custom opt${optionNum} ${idx + 1}`} fill className="object-cover" />
+                      )}
+                      <button type="button" onClick={() => updateCustomImages(optionNum, images.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {images.length < 10 && (
+                <div className="relative aspect-square">
+                  <label className="flex flex-col items-center justify-center w-full h-full rounded-md border border-dashed border-gray-300 hover:border-[#0D47A1] hover:bg-[#E3F2FD] cursor-pointer">
+                    <input type="file" multiple className="hidden" accept="image/*,video/*"
+                      onChange={e => handleCustomImageUpload(e, optionNum)} disabled={isLoading} />
+                    <Plus className="h-5 w-5 text-gray-400" />
+                    <span className="text-[10px] text-gray-500 mt-1">Add</span>
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderOption1Content = () => (
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -1313,7 +1506,7 @@ return (
                 <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
                   <div>
                     <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Customization Option</h3>
-                    <p className="text-xs text-[#0D47A1]/60 mt-0.5">Offer a customized version at a separate unit price</p>
+                    <p className="text-xs text-[#0D47A1]/60 mt-0.5">Offer up to 2 customized price options with full details</p>
                   </div>
                   <button
                     type="button"
@@ -1324,25 +1517,58 @@ return (
                   </button>
                 </div>
                 {isCustomizable && (
-                  <div className="p-4 bg-white dark:bg-gray-800">
-                    <Label className="block text-xs font-semibold text-[#0D47A1]/60 uppercase tracking-wide mb-1.5">
-                      Customized Unit Price ($ / unit)
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0D47A1]/60 text-sm font-medium">$</span>
-                      <input
-                        type="number"
-                        value={customizationPrice}
-                        onChange={e => setCustomizationPrice(e.target.value)}
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        className="w-full rounded-lg border border-[#BBDEFB] bg-white pl-7 pr-4 py-2.5 text-[#0D47A1] focus:border-[#0D47A1] focus:ring-2 focus:ring-[#0D47A1]/20 outline-none text-sm dark:bg-gray-900 dark:text-blue-300"
-                      />
+                  <div className="p-4 bg-white dark:bg-gray-800 space-y-4">
+                    {/* Custom Option 1 — always shown */}
+                    <div className="rounded-lg border border-[#BBDEFB] overflow-hidden">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-[#E3F2FD]/60 border-b border-[#BBDEFB]">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0D47A1] text-white text-[10px] font-bold">C1</span>
+                        <h4 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Custom Option 1</h4>
+                        <span className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">Required</span>
+                      </div>
+                      <div className="p-3">{renderCustomOptionContent(1)}</div>
                     </div>
-                    <p className="text-xs text-[#0D47A1]/50 mt-1.5">
-                      Total = unit price × quantity. Clients must upload customization files before paying.
-                    </p>
+
+                    {/* Add Custom Option 2 button */}
+                    {!showCustomOption2 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomOption2(true)}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-[#BBDEFB] text-[#0D47A1] text-xs font-semibold hover:bg-[#E3F2FD] hover:border-[#0D47A1] transition-all"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Custom Option 2
+                      </button>
+                    )}
+
+                    {/* Custom Option 2 — optional */}
+                    {showCustomOption2 && (
+                      <div className="rounded-lg border border-[#BBDEFB] overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-[#E3F2FD]/60 border-b border-[#BBDEFB]">
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0D47A1] text-white text-[10px] font-bold">C2</span>
+                            <h4 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Custom Option 2</h4>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCustomOption2(false);
+                              setCustomFormData(prev => ({
+                                ...prev,
+                                custom_title_option2: '', custom_unit_price_option2: undefined,
+                                custom_unit_weight_option2: undefined, custom_images_option2: [],
+                                custom_description_option2: '', custom_delivery_option2: '',
+                              }));
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white border border-[#BBDEFB] text-[#0D47A1] hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-all"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-3">{renderCustomOptionContent(2)}</div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-[#0D47A1]/50">Clients select one option and must upload customization files before paying.</p>
                   </div>
                 )}
               </div>
