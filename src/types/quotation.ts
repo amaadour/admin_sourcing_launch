@@ -1,0 +1,110 @@
+export interface PriceOption {
+  id: string;
+  price: string;
+  supplier: string;
+  deliveryTime: string;
+  description?: string;
+  modelName?: string;
+  modelImage?: string;
+}
+
+export interface QuotationProduct {
+  name: string;
+  image: string;
+  category?: string;
+  description?: string;
+  unitGrossWeight?: string;
+}
+
+export interface QuotationData {
+  id: string;
+  user_id?: string;
+  quotation_id: string;
+  product: QuotationProduct;
+  quantity: string;
+  date: string;
+  status: string;
+  price: string;
+  shippingMethod: string;
+  destination: string;
+  hasImage: boolean;
+  created_at?: string;
+  updated_at?: string;
+  service_type?: string;
+  priceOptions?: PriceOption[];
+  image_url?: string;
+  Quotation_fees?: number | null;
+  user?: {
+    email: string;
+    fullName: string;
+    role: string;
+    phone: string;
+    address: string;
+    city: string;
+    country: string;
+  };
+  // Price options fields
+  title_option1?: string;
+  total_price_option1?: string;
+  unit_price_option1?: number;
+  unit_weight_option1?: number;
+  image_option1?: string;
+  extra_images_option1?: string[];
+  price_description_option1?: string;
+  delivery_time_option1?: string;
+  description_option1?: string;
+  title_option2?: string;
+  total_price_option2?: string;
+  unit_price_option2?: number;
+  unit_weight_option2?: number;
+  image_option2?: string;
+  extra_images_option2?: string[];
+  price_description_option2?: string;
+  delivery_time_option2?: string;
+  description_option2?: string;
+  title_option3?: string;
+  total_price_option3?: string;
+  unit_price_option3?: number;
+  unit_weight_option3?: number;
+  image_option3?: string;
+  extra_images_option3?: string[];
+  price_description_option3?: string;
+  delivery_time_option3?: string;
+  description_option3?: string;
+  selected_option?: number;
+  product_url?: string;
+  receiver_name?: string;
+  receiver_phone?: string;
+  receiver_address?: string;
+  rejection_reason?: string | null;
+  client_label?: string | null;
+  // Dual pricing + customization
+  is_customizable?: boolean;
+  customization_price?: number | null;
+  selected_version?: 'stock' | 'customized' | null;
+  // Customized price options
+  custom_title_option1?: string | null;
+  custom_unit_price_option1?: number | null;
+  custom_unit_weight_option1?: number | null;
+  custom_images_option1?: string[] | null;
+  custom_description_option1?: string | null;
+  custom_delivery_option1?: string | null;
+  custom_title_option2?: string | null;
+  custom_unit_price_option2?: number | null;
+  custom_unit_weight_option2?: number | null;
+  custom_images_option2?: string[] | null;
+  custom_description_option2?: string | null;
+  custom_delivery_option2?: string | null;
+  selected_customization_option?: number | null;
+}
+
+export interface CustomizationFile {
+  id: string;
+  quotation_id: string;
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  created_at: string;
+} 
