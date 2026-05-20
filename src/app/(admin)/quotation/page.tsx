@@ -106,15 +106,29 @@ export default function QuotationPage() {
         return;
       }
 
+      // Resolve user filter to matching user IDs first (more reliable than foreignTable filter)
+      let matchedUserIds: string[] | null = null;
+      if (userFilter) {
+        const { data: matchedProfiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .or(`full_name.ilike.%${userFilter}%,email.ilike.%${userFilter}%`);
+        matchedUserIds = (matchedProfiles ?? []).map((p: { id: string }) => p.id);
+        if (matchedUserIds.length === 0) {
+          setQuotations([]);
+          setTotalPages(1);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Build the base query with proper join
-      // Use inner join when filtering by user so N/A (no profile) rows are excluded
-      const profilesJoin = userFilter ? 'profiles!inner' : 'profiles';
       let query = supabase
         .from('quotations')
         .select(`
           *,
           rejection_reason,
-          ${profilesJoin} (
+          profiles (
             id,
             email,
             full_name,
@@ -142,9 +156,9 @@ export default function QuotationPage() {
         query = query.eq('shipping_country', countryFilter);
       }
 
-      // Apply user filter (search by email or full name on joined profiles)
-      if (userFilter) {
-        query = query.or(`email.ilike.%${userFilter}%,full_name.ilike.%${userFilter}%`, { foreignTable: 'profiles' });
+      // Apply resolved user IDs filter
+      if (matchedUserIds) {
+        query = query.in('user_id', matchedUserIds);
       }
 
       // Apply pagination

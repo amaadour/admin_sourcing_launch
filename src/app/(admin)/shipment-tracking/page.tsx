@@ -209,9 +209,11 @@ export default function ShipmentTrackingPage() {
 
         const shipmentsRows = (allShipments ?? []) as unknown as ShippingRow[];
 
-        const userIds = shipmentsRows
-          .map(item => item.user_id)
-          .filter((id): id is string => id !== null && id !== undefined);
+        const userIds = [...new Set(
+          shipmentsRows
+            .map(item => item.user_id)
+            .filter((id): id is string => id !== null && id !== undefined)
+        )];
 
         // Fetch user information if there are any user IDs
         let usersMap: Record<string, { full_name: string; email: string }> = {};
