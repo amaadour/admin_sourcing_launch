@@ -72,6 +72,7 @@ export default function QuotationPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedStatus, setSelectedStatus] = useState<StatusOption>('All');
   const [metrics, setMetrics] = useState<QuotationMetrics>({
     total: 0,
@@ -244,9 +245,10 @@ export default function QuotationPage() {
 
       console.log('Raw quotations data:', quotationsData); // Debug log
 
-      // Calculate total pages
+      // Calculate total pages from the exact count
       if (count !== null) {
         setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+        setTotalCount(count);
       }
 
       // Format the data
@@ -335,21 +337,20 @@ export default function QuotationPage() {
 
       setQuotations(formattedData);
 
-      // Calculate metrics
-      const metricsRes = await supabase
-        .from('quotations')
-        .select('status');
+      // Calculate metrics using count queries (no row limit issues)
+      const [totalRes, approvedRes, pendingRes, rejectedRes] = await Promise.all([
+        supabase.from('quotations').select('*', { count: 'exact', head: true }),
+        supabase.from('quotations').select('*', { count: 'exact', head: true }).eq('status', 'Approved'),
+        supabase.from('quotations').select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
+        supabase.from('quotations').select('*', { count: 'exact', head: true }).eq('status', 'Rejected'),
+      ]);
 
-      const metricsData = (metricsRes.data ?? []) as unknown as Array<{ status?: string | null }>
-
-      if (metricsData && Array.isArray(metricsData)) {
-        const total = metricsData.length;
-        const approved = metricsData.filter(item => item.status === "Approved").length;
-        const pending = metricsData.filter(item => item.status === "Pending").length;
-        const rejected = metricsData.filter(item => item.status === "Rejected").length;
-        
-        setMetrics({ total, approved, pending, rejected });
-      }
+      setMetrics({
+        total: totalRes.count ?? 0,
+        approved: approvedRes.count ?? 0,
+        pending: pendingRes.count ?? 0,
+        rejected: rejectedRes.count ?? 0,
+      });
 
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
@@ -949,10 +950,10 @@ export default function QuotationPage() {
           {!isLoading && quotations.length > 0 && (
             <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-white/[0.05]">
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-
-                {Math.min(currentPage * ITEMS_PER_PAGE, metrics.total)} of {metrics.total} items
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}–
+                {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} items
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -962,19 +963,36 @@ export default function QuotationPage() {
                 >
                   Previous
                 </Button>
-                {[...Array(totalPages)].map((_, i) => (
-                  <Button
-                    key={i + 1}
-                    variant={currentPage === i + 1 ? "primary" : "outline"}
-                    size="sm"
-                    onClick={() => handlePageChange(i + 1)}
-                    className={currentPage === i + 1 
-                      ? "bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
+                {(() => {
+                  const delta = 2;
+                  const pages: (number | '...')[] = [];
+                  const left = Math.max(2, currentPage - delta);
+                  const right = Math.min(totalPages - 1, currentPage + delta);
+
+                  pages.push(1);
+                  if (left > 2) pages.push('...');
+                  for (let i = left; i <= right; i++) pages.push(i);
+                  if (right < totalPages - 1) pages.push('...');
+                  if (totalPages > 1) pages.push(totalPages);
+
+                  return pages.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`dots-${idx}`} className="px-2 py-1 text-sm text-gray-400 dark:text-gray-500 self-center">…</span>
+                    ) : (
+                      <Button
+                        key={p}
+                        variant={currentPage === p ? "primary" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(p as number)}
+                        className={currentPage === p
+                          ? "bg-[#1E88E5] hover:bg-[#0D47A1] dark:bg-blue-600 dark:hover:bg-blue-700"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"}
+                      >
+                        {p}
+                      </Button>
+                    )
+                  );
+                })()}
                 <Button
                   variant="outline"
                   size="sm"
