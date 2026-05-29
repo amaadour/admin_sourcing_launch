@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { sendEmailClient } from "@/lib/sendEmailClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -427,22 +428,37 @@ export default function PaymentPage() {
       }
       
       // Update state locally instead of fetching all data again
-      setPayments(prevPayments => 
-        prevPayments.map(payment => 
-          payment.id === paymentId 
-            ? { ...payment, status: newStatus } 
+      setPayments(prevPayments =>
+        prevPayments.map(payment =>
+          payment.id === paymentId
+            ? { ...payment, status: newStatus }
             : payment
         )
       );
-      
-      setFilteredPayments(prevPayments => 
-        prevPayments.map(payment => 
-          payment.id === paymentId 
-            ? { ...payment, status: newStatus } 
+
+      setFilteredPayments(prevPayments =>
+        prevPayments.map(payment =>
+          payment.id === paymentId
+            ? { ...payment, status: newStatus }
               : payment
         )
       );
-      
+
+      // Send email to client on status change
+      const updatedPayment = payments.find(p => p.id === paymentId);
+      if (updatedPayment?.profile?.email && updatedPayment.reference_number) {
+        sendEmailClient({
+          type: 'payment_status',
+          clientEmail: updatedPayment.profile.email,
+          payment: {
+            reference_number: updatedPayment.reference_number,
+            amount: Number(updatedPayment.total_amount),
+            method: updatedPayment.method,
+            status: newStatus,
+          },
+        });
+      }
+
       showToast(`Payment status changed to ${newStatus}`, 'success');
       setIsStatusDropdownOpen(null);
     } catch (err) {
