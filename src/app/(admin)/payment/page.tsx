@@ -55,6 +55,21 @@ interface Quotation {
   created_at: string;
   updated_at: string | null;
   Quotation_fees: string | null;
+  // Custom price offer fields
+  selected_version: 'stock' | 'customized' | null;
+  selected_customization_option: number | null;
+  custom_title_option1: string | null;
+  custom_unit_price_option1: number | null;
+  custom_unit_weight_option1: number | null;
+  custom_images_option1: string[] | null;
+  custom_description_option1: string | null;
+  custom_delivery_option1: string | null;
+  custom_title_option2: string | null;
+  custom_unit_price_option2: number | null;
+  custom_unit_weight_option2: number | null;
+  custom_images_option2: string[] | null;
+  custom_description_option2: string | null;
+  custom_delivery_option2: string | null;
 }
 
 interface Payment {
@@ -206,7 +221,7 @@ export default function PaymentPage() {
           if (validIds.length > 0) {
             const { data: quotationsDataById, error: quotationsErrorById } = await supabase
               .from('quotations')
-              .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
+              .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees, selected_version, selected_customization_option, custom_title_option1, custom_unit_price_option1, custom_unit_weight_option1, custom_images_option1, custom_description_option1, custom_delivery_option1, custom_title_option2, custom_unit_price_option2, custom_unit_weight_option2, custom_images_option2, custom_description_option2, custom_delivery_option2')
               .in('id', validIds);
               
             if (quotationsErrorById) {
@@ -230,7 +245,7 @@ export default function PaymentPage() {
           if (validRefs.length > 0) {
             const { data: quotationsDataByRef, error: quotationsErrorByRef } = await supabase
               .from('quotations')
-              .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees')
+              .select('id, quotation_id, product_name, product_url, quantity, total_price_option1, total_price_option2, total_price_option3, unit_price_option1, unit_price_option2, unit_price_option3, unit_weight_option1, unit_weight_option2, unit_weight_option3, title_option1, title_option2, title_option3, description_option1, description_option2, description_option3, delivery_time_option1, delivery_time_option2, delivery_time_option3, image_url, extra_images_option1, extra_images_option2, extra_images_option3, selected_option, status, service_type, shipping_method, shipping_country, shipping_city, receiver_name, receiver_phone, receiver_address, created_at, updated_at, Quotation_fees, selected_version, selected_customization_option, custom_title_option1, custom_unit_price_option1, custom_unit_weight_option1, custom_images_option1, custom_description_option1, custom_delivery_option1, custom_title_option2, custom_unit_price_option2, custom_unit_weight_option2, custom_images_option2, custom_description_option2, custom_delivery_option2')
               .in('quotation_id', validRefs);
               
             if (quotationsErrorByRef) {
@@ -783,52 +798,73 @@ export default function PaymentPage() {
                   const calculatedTotal = unitPrice && quotation.quantity ? 
                     (parseFloat(unitPrice) * quotation.quantity).toFixed(2) : null;
 
+                  // Determine if this was a custom price offer payment
+                  const isCustomOffer = quotation.selected_version === 'customized';
+                  const customOptNum = quotation.selected_customization_option;
+                  const customTitle = customOptNum === 1 ? quotation.custom_title_option1 : customOptNum === 2 ? quotation.custom_title_option2 : null;
+                  const customUnitPrice = customOptNum === 1 ? quotation.custom_unit_price_option1 : customOptNum === 2 ? quotation.custom_unit_price_option2 : null;
+                  const customWeight = customOptNum === 1 ? quotation.custom_unit_weight_option1 : customOptNum === 2 ? quotation.custom_unit_weight_option2 : null;
+                  const customImages = (customOptNum === 1 ? quotation.custom_images_option1 : customOptNum === 2 ? quotation.custom_images_option2 : null) || [];
+                  const customDescription = customOptNum === 1 ? quotation.custom_description_option1 : customOptNum === 2 ? quotation.custom_description_option2 : null;
+                  const customDelivery = customOptNum === 1 ? quotation.custom_delivery_option1 : customOptNum === 2 ? quotation.custom_delivery_option2 : null;
+                  const customTotal = customUnitPrice && quotation.quantity ? (customUnitPrice * quotation.quantity).toFixed(2) : null;
+
+                  // For the primary display image: use first custom image if custom offer, otherwise image_url
+                  const displayImage = isCustomOffer && customImages.length > 0 ? customImages[0] : quotation.image_url;
+
                   return (
-                    <div key={quotation.id} className="border rounded-lg border-gray-200 dark:border-slate-700 p-6 bg-gray-50 dark:bg-slate-900/50">
-                      {/* Header Section */}
-                      <div className="flex flex-col md:flex-row gap-4 mb-6">
-                        <div className="flex-shrink-0">
-                          {quotation.image_url ? (
-                            <div className="relative h-32 w-32 md:h-40 md:w-40 overflow-hidden rounded-md border border-gray-200 dark:border-slate-700">
-                              <Image
-                                src={quotation.image_url}
-                                alt={quotation.product_name}
-                                width={160}
-                                height={160}
-                                className="w-full h-full object-cover rounded-md hover:opacity-90 transition-opacity cursor-pointer"
-                                onClick={() => window.open(quotation.image_url || '', '_blank')}
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-32 w-32 md:h-40 md:w-40 bg-gray-100 dark:bg-slate-700 rounded-md flex items-center justify-center border border-gray-200 dark:border-slate-600">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-grow">
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-2">{quotation.product_name}</h3>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                            <div>
-                              <p className="text-gray-500 dark:text-slate-400">Quotation ID</p>
-                              <p className="font-mono text-gray-700 dark:text-slate-300 font-medium">{quotation.quotation_id || quotation.id}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-500 dark:text-slate-400">Status</p>
-                              <Badge className={`mt-1 ${
-                                quotation.status === 'Approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
-                                quotation.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
-                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400'
-                              }`}>
-                                {quotation.status}
-                              </Badge>
-                            </div>
-                            <div>
-                              <p className="text-gray-500 dark:text-slate-400">Service Type</p>
-                              <p className="text-gray-700 dark:text-slate-300">{quotation.service_type || 'N/A'}</p>
-                            </div>
+                    <div key={quotation.id} className="border rounded-lg border-gray-200 dark:border-slate-700 overflow-hidden bg-gray-50 dark:bg-slate-900/50">
+                      {/* Top Product Image Banner — always use the main quotation image (direct URL, no Next.js proxy) */}
+                      <div className="relative w-full h-56 md:h-72 bg-gray-100 dark:bg-slate-800 overflow-hidden cursor-pointer"
+                        onClick={() => quotation.image_url && window.open(quotation.image_url, '_blank')}
+                      >
+                        {quotation.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={quotation.image_url}
+                            alt={quotation.product_name}
+                            className="w-full h-full object-contain hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm">No image</span>
                           </div>
+                        )}
+                        {/* Product name overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3">
+                          <h3 className="text-white font-bold text-lg leading-tight">{quotation.product_name}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-white/70 text-xs font-mono">{quotation.quotation_id || quotation.id}</span>
+                            {isCustomOffer && (
+                              <span className="px-2 py-0.5 rounded-full bg-purple-500 text-white text-xs font-semibold">Custom Offer</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-6">
+                      {/* Info row below the image banner */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mb-6">
+                        <div>
+                          <p className="text-gray-500 dark:text-slate-400">Quotation ID</p>
+                          <p className="font-mono text-gray-700 dark:text-slate-300 font-medium">{quotation.quotation_id || quotation.id}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-slate-400">Status</p>
+                          <Badge className={`mt-1 ${
+                            quotation.status === 'Approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400' :
+                            quotation.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                            'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400'
+                          }`}>
+                            {quotation.status}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-slate-400">Service Type</p>
+                          <p className="text-gray-700 dark:text-slate-300">{quotation.service_type || 'N/A'}</p>
                         </div>
                       </div>
 
@@ -908,51 +944,102 @@ export default function PaymentPage() {
                         </div>
                       </div>
 
-                      {/* Selected Price Option */}
-                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
-                        <h4 className="font-semibold text-green-900 dark:text-green-100 mb-3">Selected Price Option {selectedOption}</h4>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-green-700 dark:text-green-300 mb-1">Option Title:</p>
-                            <p className="font-medium text-green-900 dark:text-green-100">{title || 'N/A'}</p>
+                      {/* Custom Price Offer Section */}
+                      {isCustomOffer ? (
+                        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 mb-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-700 text-white text-xs font-bold">C{customOptNum}</span>
+                            <h4 className="font-semibold text-purple-900 dark:text-purple-100">Custom Price Offer — {customTitle || `Custom Option ${customOptNum}`}</h4>
+                            <span className="ml-auto px-2 py-0.5 rounded-full bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 text-xs font-semibold">Customized</span>
                           </div>
-                          {description && (
+                          {customDescription && (
+                            <p className="text-sm text-purple-800 dark:text-purple-200 mb-3">{customDescription}</p>
+                          )}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                             <div>
-                              <p className="text-sm text-green-700 dark:text-green-300 mb-1">Description:</p>
-                              <p className="text-sm text-green-900 dark:text-green-100">{description}</p>
+                              <p className="text-sm text-purple-700 dark:text-purple-300">Unit Price:</p>
+                              <p className="font-bold text-purple-900 dark:text-purple-100">{customUnitPrice != null ? formatAmount(String(customUnitPrice)) : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-purple-700 dark:text-purple-300">Unit Weight:</p>
+                              <p className="font-bold text-purple-900 dark:text-purple-100">{customWeight != null ? `${customWeight} g` : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-purple-700 dark:text-purple-300">Quantity:</p>
+                              <p className="font-bold text-purple-900 dark:text-purple-100">{quotation.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-purple-700 dark:text-purple-300">Total:</p>
+                              <p className="font-bold text-lg text-purple-900 dark:text-purple-100">{customTotal ? formatAmount(customTotal) : 'N/A'}</p>
+                            </div>
+                          </div>
+                          {customDelivery && (
+                            <div className="mb-3">
+                              <p className="text-sm text-purple-700 dark:text-purple-300">Delivery Time:</p>
+                              <p className="font-medium text-purple-900 dark:text-purple-100">{customDelivery}</p>
                             </div>
                           )}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {/* Custom images gallery */}
+                          {customImages.length > 0 && (
                             <div>
-                              <p className="text-sm text-green-700 dark:text-green-300">Unit Price:</p>
-                              <p className="font-bold text-green-900 dark:text-green-100">{unitPrice ? formatAmount(unitPrice) : 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-green-700 dark:text-green-300">Unit Weight:</p>
-                              <p className="font-bold text-green-900 dark:text-green-100">{unitWeight ? `${unitWeight} g` : 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-green-700 dark:text-green-300">Quantity:</p>
-                              <p className="font-bold text-green-900 dark:text-green-100">{quotation.quantity}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-green-700 dark:text-green-300">Total:</p>
-                              <p className="font-bold text-lg text-green-900 dark:text-green-100">
-                                {calculatedTotal ? formatAmount(calculatedTotal) : (totalPrice ? formatAmount(totalPrice) : 'N/A')}
-                              </p>
-                            </div>
-                          </div>
-                          {deliveryTime && (
-                            <div>
-                              <p className="text-sm text-green-700 dark:text-green-300">Delivery Time:</p>
-                              <p className="font-medium text-green-900 dark:text-green-100">{deliveryTime}</p>
+                              <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">Custom Option Images ({customImages.length}):</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                {customImages.map((img, idx) => (
+                                  <div key={idx} className="relative aspect-square rounded-md overflow-hidden border border-purple-200 dark:border-purple-700 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(img, '_blank')}>
+                                    <Image src={img} alt={`Custom image ${idx + 1}`} fill className="object-cover" />
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
+                      ) : (
+                        /* Standard Selected Price Option */
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                          <h4 className="font-semibold text-green-900 dark:text-green-100 mb-3">Selected Price Option {selectedOption}</h4>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-green-700 dark:text-green-300 mb-1">Option Title:</p>
+                              <p className="font-medium text-green-900 dark:text-green-100">{title || 'N/A'}</p>
+                            </div>
+                            {description && (
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300 mb-1">Description:</p>
+                                <p className="text-sm text-green-900 dark:text-green-100">{description}</p>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300">Unit Price:</p>
+                                <p className="font-bold text-green-900 dark:text-green-100">{unitPrice ? formatAmount(unitPrice) : 'N/A'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300">Unit Weight:</p>
+                                <p className="font-bold text-green-900 dark:text-green-100">{unitWeight ? `${unitWeight} g` : 'N/A'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300">Quantity:</p>
+                                <p className="font-bold text-green-900 dark:text-green-100">{quotation.quantity}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300">Total:</p>
+                                <p className="font-bold text-lg text-green-900 dark:text-green-100">
+                                  {calculatedTotal ? formatAmount(calculatedTotal) : (totalPrice ? formatAmount(totalPrice) : 'N/A')}
+                                </p>
+                              </div>
+                            </div>
+                            {deliveryTime && (
+                              <div>
+                                <p className="text-sm text-green-700 dark:text-green-300">Delivery Time:</p>
+                                <p className="font-medium text-green-900 dark:text-green-100">{deliveryTime}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Extra Images Gallery */}
-                      {extraImages && Array.isArray(extraImages) && extraImages.length > 0 && (
+                      {/* Extra Images Gallery (standard options only) */}
+                      {!isCustomOffer && extraImages && Array.isArray(extraImages) && extraImages.length > 0 && (
                         <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4 mb-4">
                           <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">Additional Images ({extraImages.length})</h4>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1002,6 +1089,7 @@ export default function PaymentPage() {
                         <span>Created: {formatDate(quotation.created_at)}</span>
                         {quotation.updated_at && <span>Updated: {formatDate(quotation.updated_at)}</span>}
                       </div>
+                      </div>{/* end p-6 */}
                     </div>
                   );
                 })}

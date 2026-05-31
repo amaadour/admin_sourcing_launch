@@ -166,9 +166,8 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
         rejection_reason: formData.status === 'Rejected' ? formData.rejection_reason.trim() : null,
         client_label: hasApprovedPayment ? (quotation.client_label || null) : (formData.client_label.trim() || null),
         is_customizable: formData.is_customizable,
-        customization_price: formData.is_customizable && formData.customization_price.trim()
-          ? parseFloat(formData.customization_price)
-          : null,
+        // Only clear customization_price when disabling; leave it alone when enabling (PriceOptionsModal manages it)
+        ...(!formData.is_customizable ? { customization_price: null } : {}),
         updated_at: new Date().toISOString()
       };
 
@@ -441,26 +440,10 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
 
               {/* Customization Option */}
               <div className="rounded-xl border border-[#BBDEFB] overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
+                <div className="px-4 py-3 bg-[#E3F2FD] border-b border-[#BBDEFB]">
                   <h3 className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide">Customization Option</h3>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, is_customizable: !prev.is_customizable }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${formData.is_customizable ? 'bg-[#0D47A1]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.is_customizable ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
+                  <p className="text-xs text-[#0D47A1]/50 mt-0.5">Configure prices & images in <span className="font-semibold">Manage Price Options</span></p>
                 </div>
-                {formData.is_customizable && (
-                  <div className="p-4 bg-white dark:bg-gray-800 border-b border-[#E3F2FD]">
-                    <label className={lbl}>Customized Unit Price ($ / unit)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0D47A1]/60 text-sm">$</span>
-                      <input type="number" name="customization_price" value={formData.customization_price} onChange={handleChange} placeholder="0.00" step="0.01" min="0" className={`${inp} pl-7`} />
-                    </div>
-                    <p className="text-xs text-[#0D47A1]/50 mt-1.5">Total = unit price × quantity. Clients must upload customization files before paying.</p>
-                  </div>
-                )}
                 {customizationFiles.length > 0 && (
                   <div className="p-4 bg-white dark:bg-gray-800 space-y-2">
                     <p className="text-xs font-semibold text-[#0D47A1] uppercase tracking-wide mb-2">Client Files ({customizationFiles.length})</p>
