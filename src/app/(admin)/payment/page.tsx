@@ -809,9 +809,6 @@ export default function PaymentPage() {
                   const customDelivery = customOptNum === 1 ? quotation.custom_delivery_option1 : customOptNum === 2 ? quotation.custom_delivery_option2 : null;
                   const customTotal = customUnitPrice && quotation.quantity ? (customUnitPrice * quotation.quantity).toFixed(2) : null;
 
-                  // For the primary display image: use first custom image if custom offer, otherwise image_url
-                  const displayImage = isCustomOffer && customImages.length > 0 ? customImages[0] : quotation.image_url;
-
                   return (
                     <div key={quotation.id} className="border rounded-lg border-gray-200 dark:border-slate-700 overflow-hidden bg-gray-50 dark:bg-slate-900/50">
                       {/* Top Product Image Banner — always use the main quotation image (direct URL, no Next.js proxy) */}
