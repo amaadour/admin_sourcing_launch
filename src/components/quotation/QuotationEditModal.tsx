@@ -165,9 +165,10 @@ export default function QuotationEditModal({ isOpen, onClose, quotation, onUpdat
         receiver_address: formData.receiver_address || null,
         rejection_reason: formData.status === 'Rejected' ? formData.rejection_reason.trim() : null,
         client_label: hasApprovedPayment ? (quotation.client_label || null) : (formData.client_label.trim() || null),
-        is_customizable: formData.is_customizable,
-        // Only clear customization_price when disabling; leave it alone when enabling (PriceOptionsModal manages it)
-        ...(!formData.is_customizable ? { customization_price: null } : {}),
+        // NOTE: is_customizable / customization_price are intentionally NOT written here.
+        // They are owned exclusively by the Manage Price Options modal (PriceOptionsModal).
+        // This modal loads is_customizable once on open, so writing it back would overwrite
+        // (revert) any toggle change just made in PriceOptionsModal with a stale value.
         updated_at: new Date().toISOString()
       };
 
